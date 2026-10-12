@@ -205,7 +205,6 @@ def calculate_accuracy_and_loss(
     total = 0
     current_loss = 0.0
     num_batches = 0
-    batch_preparation_fn = batch_preparation_fn or prepare_model_batch
 
     model.to(device)
     model.eval()

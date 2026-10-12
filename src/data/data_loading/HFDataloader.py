@@ -24,7 +24,7 @@ def _effective_worker_count(requested_cpus: int) -> int:
 # Define a type for the dataloader dict
 DataLoaderDict = dict[str, torch.utils.data.DataLoader]
 
-def initialize_dataloaders(config: TrainingConfig, cache_manager: cacheManager= None, splits=None, keep_all_columns: bool = False, streaming: bool = False) -> DataLoaderDict:
+def initialize_dataloaders(config: TrainingConfig, cache_manager: cacheManager= None, splits=None) -> DataLoaderDict:
     """Create one PyTorch dataloader per requested dataset split.
 
     The cache must contain sharded safetensors with ``data``, ``labels``, and
@@ -74,23 +74,6 @@ def initialize_dataloaders(config: TrainingConfig, cache_manager: cacheManager= 
 
     return dataloader_dict
 
-
-def clear_cache(remove_dataset_cache: bool = False, remove_mapped_cache: bool = True):
-    """Delete selected Hugging Face dataset cache directories from the environment."""
-    cache_dir = os.environ.get("HF_DOWNLOADED_DATASET_DIR")
-    mapped_cache_dir = os.environ.get("HF_MAPPED_DATASET_DIR")
-
-    if remove_dataset_cache and os.path.exists(cache_dir):
-        logging.info(f"Clearing dataset cache directory: {cache_dir}")
-        shutil.rmtree(cache_dir)
-        logging.info("\t...dataset cache cleared")
-
-    if remove_mapped_cache and os.path.exists(mapped_cache_dir):
-        logging.info(f"Clearing mapped cache directory: {mapped_cache_dir}")
-        shutil.rmtree(mapped_cache_dir)
-        logging.info("\t...mapped cache cleared")
-    else:
-        logging.info(f"Cache directory {cache_dir} does not exist, nothing to clear.")
 
 
 

@@ -8,10 +8,13 @@ class Metrics:
     def __init__(self, patience=5, minimum_delta=0.001):
         self.validation_loss = []
         self.validation_accuracy = []
+
         self.training_accuracy = []
         self.train_loss = []
+
         self.min_val_loss = float('inf')
         self.minimum_delta = minimum_delta
+
         self.patience = patience
         self.patience_counter = 0
 
@@ -80,6 +83,7 @@ class Metrics:
         plt.legend()
         plt.savefig(filename)
         plt.close()
+ 
     def model_improved(self):
         # Initialize best loss on first validation checkpoint.
         if len(self.validation_loss) == 0:
@@ -100,16 +104,17 @@ class Metrics:
             return True
         return False
 
+    # currently not used
     def is_overfitting(self):
         # if not enough data to compare return False
         if self.model_improved():
             return False
         else:
-            self.patience_counter += 1
             if self.patience_counter >= self.patience:
                 return True
             else:
                 return False
+            
     @staticmethod
     def compare_metrics(metrics: List['Metrics'], names: List[str] = None, path="./output/comparison_plots/last_comparison.png"):
         ms: Metrics
@@ -185,6 +190,7 @@ class Metrics:
         # print
         print(f"Saving comparison plot to {path}")
         fig.savefig(path)
+        
 if __name__ == "__main__":
     # Example usage
     metrics = Metrics(patience=5)
