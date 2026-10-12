@@ -1,0 +1,24 @@
+name: Copy public container to my fork
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  copy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Copy image to fork
+        env:
+          SOURCE_IMAGE: ghcr.io/sam-roggeman/dpp8dpp9-image:v4
+          TARGET_IMAGE: ghcr.io/stijndhondt2000/dpp8-9-image:latest
+        run: |
+          docker pull "$SOURCE_IMAGE"
+          echo "${{ secrets.GITHUB_TOKEN }}" | \
+            docker login ghcr.io \
+            -u "${{ github.actor }}" --password-stdin
+          docker tag "$SOURCE_IMAGE" "$TARGET_IMAGE"
+          docker push "$TARGET_IMAGE"
