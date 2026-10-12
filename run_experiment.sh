@@ -1,6 +1,6 @@
 #!/bin/bash
 cd /project_antwerp/Thesis-molecular_dynamics_trajectory_embeddings || exit
-
+#set the token to access git
 token=$(cat '/project_antwerp/token.txt')
 echo "machine github.com login oauth2 password ${token}" >> ~/.netrc
 git pull
