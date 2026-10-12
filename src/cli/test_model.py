@@ -120,8 +120,6 @@ def main() -> None:
 		if (args.dataset_size <= 0 or args.dataset_size > 1):
 			raise ValueError("Invalid dataset size. Must be between 0 and 1.")
 		config.dataset_size = args.dataset_size
-	if args.dataset_location is not None:
-		config.dataset_location = args.dataset_location
 	if args.batch_size is not None:
 		config.batch_size = args.batch_size
 	if args.num_cpus is not None:
@@ -146,7 +144,6 @@ def main() -> None:
 	test_loaders = _build_test_dataloader(config, splits=args.splits, streaming=args.streaming)
 	logging.info(f"Evaluating checkpoint: {checkpoint_path}")
 	logging.info(f"Model: {model_name} with args={config.model_args}")
-	logging.info(f"Dataset: {config.dataset_location} (size={config.dataset_size})")
 	logging.info(f"Batch size: {config.batch_size}, num_cpus: {config.num_cpus}")
 	logging.info(f"Device: {device}")
 

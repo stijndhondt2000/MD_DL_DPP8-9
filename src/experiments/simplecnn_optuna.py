@@ -126,7 +126,6 @@ def main() -> None:
                 "input_size": 168,
                 "dropout_rate": dropout_rate,
             },
-            dataset_location=args.dataset_location,
             dataset_size=args.dataset_size,
             batch_size=batch_size,
             learning_rate=learning_rate,

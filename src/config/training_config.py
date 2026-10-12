@@ -8,6 +8,7 @@ import torch
 from torch import optim
 from torch.nn import CrossEntropyLoss
 
+from src.training.batch_preprocessing import prepare_model_batch
 from src.transform.tranformators import apply_image_transform, apply_image_transform_noscramble
 
 
@@ -29,6 +30,7 @@ def calculate_num_cpus():
     cpu_count = max(0, cpu_count)
     print (f"Using {cpu_count} CPUs for data loading and processing (GPULAB_CPUS_RESERVED={os.environ.get('GPULAB_CPUS_RESERVED', 'N/A')}, total_cpus={cpu_count}).")
     return cpu_count
+
 @dataclass
 class TrainingConfig:
     """Configuration for training runs"""
@@ -38,17 +40,22 @@ class TrainingConfig:
 
     # Maximum wall-clock training time in seconds.
     time_limit: int = 12 * 60 * 60
+    
     # L2 regularization strength used by AdamW.
     weight_decay: float = 1e-2
     # Base learning rate used by the optimizer.
     learning_rate: float = 1e-4
+
     # Number of samples per optimization step.
     batch_size: int = 1024
-    # Early stopping patience (number of eval windows without improvement).
-    patience: int = 5
-    minimum_delta: float = 0.01
     # Upper bound on full epochs.
     max_nr_epochs: int = 600
+        
+    # Early stopping patience (number of eval windows without improvement).
+    patience: int = 5
+    # Minimum change in validation loss to qualify as an improvement.
+    minimum_delta: float = 0.01
+    
     # Optional hard cap on training steps; if None, epoch-based stopping is used.
     max_train_steps: int | None = None
     # Number of train steps to run per epoch abstraction.
@@ -57,8 +64,10 @@ class TrainingConfig:
     eval_every_steps: int = 1000
     # Log training metrics every N train steps.
     log_every_steps: int = 100
+
     # Overlap next-batch GPU prep with current step compute using a CUDA stream.
-    use_cuda_prefetcher: bool = False
+    # If True, the next batch is prepared on the GPU while the current batch is being processed. This can improve throughput but may increase memory usage.
+    use_cuda_prefetcher: bool = False   
     compile_model: bool = True
     # Number of explicit warmup train steps after torch.compile. Set to 0 to disable.
     compile_warmup_steps: int = 5
@@ -66,14 +75,13 @@ class TrainingConfig:
     use_mixed_precision: bool = True
     # AMP autocast dtype on CUDA: "float16" or "bfloat16".
     amp_dtype: str = "bfloat16"
+ 
     # Automatically retry training on CUDA OOM by lowering batch size.
     oom_retry_enabled: bool = True
     # Maximum number of CUDA OOM retries per run.
     oom_max_retries: int = 3
     # Smallest batch size allowed when retrying after CUDA OOM.
     min_batch_size: int = 8
-    # Disable torch.compile after CUDA OOM to reduce memory pressure.
-    disable_compile_on_oom: bool = True
 
     # Loss function factory/callable.
     criterion: Callable = CrossEntropyLoss
@@ -83,18 +91,14 @@ class TrainingConfig:
     scheduler: Callable = None
 
 
-    # Hugging Face dataset ID or local dataset path.
-    dataset_location: str = "Sam-Roggeman/SamRoggeman_Thesis_Dataset"
     # Fraction of each split to use when < 1.0.
     dataset_size: float = 1.0
-    # RNG seed used by dataset shuffle.
-    shuffle_seed: int = 42
     # Optional cap on validation batches per evaluation.
     validation_max_batches: int | None = None
     # Optional cap on test batches.
     test_max_batches: int | None = None
     # Callable that turns a raw dataloader batch into model inputs and labels.
-    batch_preparation_fn: Callable | None = None
+    batch_preparation_fn: Callable | None = prepare_model_batch
     # Batch size used inside dataset.map for preprocessing.
     transform_batch_size:int = 1024
     # CPU workers used by dataset processing/DataLoader. Derived from GPULAB_CPUS_RESERVED when available.
@@ -126,13 +130,9 @@ class TestConfig():
     dataset_size: float = 0.15
     # Loss function callable used for reporting evaluation loss.
     critrion: Callable = CrossEntropyLoss
-    # Transform applied to validation/test batches.
-    validation_transform: Callable = apply_image_transform_noscramble
     # Batch size used inside dataset.map during preprocessing.
     transform_batch_size:int = 32
     # Number of CPU workers used by the evaluation pipeline.
-    num_cpus:int = 8
-    # Hugging Face dataset ID or local dataset path.
-    dataset_location: str = "Sam-Roggeman/SamRoggeman_Thesis_Dataset"
+    num_cpus:int = field(default_factory=calculate_num_cpus)
 
 

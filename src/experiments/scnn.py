@@ -4,7 +4,6 @@ from huggingface_hub import HfApi
 
 from src.models.SCNN import SCNN
 from src.training.training_setup import train_model
-from src.transform.tranformators import apply_image_transform, apply_image_transform_noscramble
 from src.config.training_config import TrainingConfig
 if __name__ == "__main__":
     config_scnn = TrainingConfig(
@@ -13,7 +12,6 @@ if __name__ == "__main__":
             "input_size": 168,
             "dropout_rate": 0.5
         },
-        dataset_location="Sam-Roggeman/SamRoggeman_Thesis_Dataset_full",
         batch_size=4096,
         time_limit=24 * 60 * 60,  # 24 hours
         use_mixed_precision=False,  # Disable mixed precision for better stability with DenseNet
@@ -23,3 +21,4 @@ if __name__ == "__main__":
     )
 
     train_model(config_scnn, "SCNN")
+

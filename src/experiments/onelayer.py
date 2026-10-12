@@ -22,7 +22,6 @@ if __name__ == "__main__":
         batch_size=32,
         patience=15,
         max_nr_epochs=100,
-        dataset_location="Sam-Roggeman/SamRoggeman_Thesis_Dataset_full",
         dataset_size=0.15,
         transform_batch_size=64,
     )

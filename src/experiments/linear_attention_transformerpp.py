@@ -25,7 +25,6 @@ if __name__ == "__main__":
         model_args={
         },
         criterion=build_weighted_cross_entropy,
-        dataset_location="Sam-Roggeman/SamRoggeman_Thesis_Dataset_full",
         batch_preparation_fn=prepare_sequence_batch,
         batch_size=64,
         compile_model=True,
