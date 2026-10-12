@@ -1,10 +1,5 @@
 #!/bin/bash
-cd /project_antwerp/MD_DL_DPP8-9 || exit
-#set the token to access git
-token=$(cat '/project_antwerp/token.txt')
-echo "machine github.com login oauth2 password ${token}" >> ~/.netrc
-git pull
-
+source /project_antwerp/MD_DL_DPP8-9/pull_git.sh
 # take the first argument as the filename of the python script to run
 PYTHON_MODULE=$1
 python3 -m "$PYTHON_MODULE"
