@@ -1,5 +1,5 @@
 #!/bin/bash
-cd /project_antwerp/Thesis-molecular_dynamics_trajectory_embeddings || exit
+cd /project_antwerp/MD_DL_DPP8-9 || exit
 #Set the git token
 token=$(cat '/project_antwerp/token.txt')
 echo "machine github.com login oauth2 password ${token}" >> ~/.netrc

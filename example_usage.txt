@@ -1,5 +1,5 @@
 Example command:
-	(Sam_Modelinterpretability) stijn@quantum:~/Sam_ModelVisualisation/Thesis-molecular_dynamics_trajectory_embeddings$ 
+	(Sam_Modelinterpretability) stijn@quantum:~/Sam_ModelVisualisation/MD_DL_DPP8-9$ 
 		python3 -m src.cli.interpretability --pdb_file ../input_frames/frame_0.pdb --output_dir ../output_frames/ --methods occlusion --binding_type nonbinder --model_checkpoint ../Models/SimpleCNN/SimpleCNN_Randomsplit_Dataset.pth --threshold 0.4
 
 Documentation
