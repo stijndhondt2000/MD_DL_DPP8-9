@@ -1,6 +1,5 @@
 import os
 
-from huggingface_hub import HfApi
 
 from src.models.SCNN import SCNN
 from src.training.training_setup import train_model
@@ -14,7 +13,6 @@ if __name__ == "__main__":
         },
         batch_size=4096,
         time_limit=24 * 60 * 60,  # 24 hours
-        use_mixed_precision=False,  # Disable mixed precision for better stability with DenseNet
         max_nr_epochs=100,
         dataset_size=1.0,  # Use the full dataset
         learning_rate = 1e-3,

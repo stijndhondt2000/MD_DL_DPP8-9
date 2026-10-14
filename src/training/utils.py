@@ -168,133 +168,28 @@ def _train_single_batch_prepared(model, inputs, labels, optimizer, criterion):
     return batch_correct, batch_total, loss.item()
 
 
-def _resolve_amp_dtype(amp_dtype):
-    if isinstance(amp_dtype, torch.dtype):
-        return amp_dtype
-    if isinstance(amp_dtype, str):
-        normalized = amp_dtype.strip().lower()
-        if normalized in {"fp16", "float16", "half"}:
-            return torch.float16
-        if normalized in {"bf16", "bfloat16"}:
-            return torch.bfloat16
-    return torch.bfloat16
-
-
 def _train_single_batch_prepared_amp(
     model,
     inputs,
     labels,
     optimizer,
     criterion,
-    device,
-    use_mixed_precision=False,
-    amp_dtype=torch.bfloat16,
-    grad_scaler=None,
 ):
     """Train one already-prepared batch with optional CUDA AMP and return stats."""
     model.train()
     optimizer.zero_grad()
 
-    use_amp = bool(use_mixed_precision and device.type == "cuda")
-    amp_context = (
-        torch.autocast(device_type="cuda", dtype=amp_dtype, enabled=True)
-        if use_amp
-        else nullcontext()
-    )
 
-    with amp_context:
-        outputs = model(inputs)
-        loss = criterion(outputs, labels)
-
-    if not torch.isfinite(loss):
-        optimizer.zero_grad(set_to_none=True)
-        return 0, 0, float("nan")
-
-    if use_amp and grad_scaler is not None:
-        grad_scaler.scale(loss).backward()
-        grad_scaler.step(optimizer)
-        grad_scaler.update()
-    else:
-        loss.backward()
-        optimizer.step()
+    outputs = model(inputs)
+    loss = criterion(outputs, labels)
+    loss.backward()
+    optimizer.step()
 
     _, predicted = torch.max(outputs, 1)
     batch_total = labels.size(0)
     batch_correct = (predicted == labels).sum().item()
     return batch_correct, batch_total, loss.item()
 
-
-class CUDABatchPrefetcher:
-    """Prefetch and preprocess the next batch on a dedicated CUDA stream."""
-
-    def __init__(self, dataloader, device, scramble=True, batch_preparation_fn=prepare_model_batch):
-        self.dataloader = dataloader
-        self.device = device
-        self.scramble = scramble
-        self.batch_preparation_fn = batch_preparation_fn
-        self.stream = torch.cuda.Stream(device=device)
-        self.loader_iter = None
-        self.next_inputs = None
-        self.next_labels = None
-        self._prefetch_thread = None
-        self._thread_error = None
-
-    def reset(self):
-        self.loader_iter = iter(self.dataloader)
-        self._thread_error = None
-        self._prefetch_async()
-
-    def _prefetch_worker(self):
-        try:
-            batch = next(self.loader_iter)
-        except StopIteration:
-            self.next_inputs = None
-            self.next_labels = None
-            return
-        except Exception as exc:
-            self._thread_error = exc
-            self.next_inputs = None
-            self.next_labels = None
-            return
-
-        with torch.cuda.stream(self.stream):
-            inputs, labels = self.batch_preparation_fn(batch, self.device, scramble=self.scramble)
-            self.next_inputs = inputs
-            self.next_labels = labels
-
-    def _prefetch_async(self):
-        self._prefetch_thread = threading.Thread(target=self._prefetch_worker, daemon=True)
-        self._prefetch_thread.start()
-
-    def _wait_prefetch(self):
-        if self._prefetch_thread is not None:
-            self._prefetch_thread.join()
-            self._prefetch_thread = None
-
-        if self._thread_error is not None:
-            err = self._thread_error
-            self._thread_error = None
-            raise err
-
-    def next(self):
-        self._wait_prefetch()
-        if self.next_inputs is None:
-            raise StopIteration
-
-        current_stream = torch.cuda.current_stream(self.device)
-        current_stream.wait_stream(self.stream)
-
-        inputs = self.next_inputs
-        labels = self.next_labels
-
-        if torch.is_tensor(inputs) and inputs.is_cuda:
-            inputs.record_stream(current_stream)
-        if torch.is_tensor(labels) and labels.is_cuda:
-            labels.record_stream(current_stream)
-
-        # Start preparing the following batch while current batch is being trained.
-        self._prefetch_async()
-        return inputs, labels
 
 
 def _safe_len(dataloader):

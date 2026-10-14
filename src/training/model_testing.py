@@ -16,8 +16,6 @@ def model_testing(
     max_batches=None,
     split_name="test",
     batch_preparation_fn=None,
-    use_mixed_precision=False,
-    amp_dtype=torch.bfloat16,
 ):
     """Test a model on a given test loader and compute various statistics.
     Args:
@@ -29,8 +27,6 @@ def model_testing(
         max_batches: Maximum number of batches to process. If None, process all batches.
         split_name: Name of the data split (e.g., 'test', 'validation').
         batch_preparation_fn: Optional function to prepare batches before feeding them to the model.
-        use_mixed_precision: Whether to use mixed precision for inference.
-        amp_dtype: The data type for automatic mixed precision (e.g., torch.float16, torch.bfloat16).
     """
     statistics = calculate_statistics(
         model=model,
@@ -39,8 +35,6 @@ def model_testing(
         criterion=criterion,
         max_batches=max_batches,
         batch_preparation_fn=batch_preparation_fn,
-        use_mixed_precision=use_mixed_precision,
-        amp_dtype=amp_dtype,
     )
     labelencoder = LabelEncoder()
     label_classes = labelencoder.get_classes()

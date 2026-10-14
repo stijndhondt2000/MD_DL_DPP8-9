@@ -10,7 +10,6 @@ from pathlib import Path
 
 from src.training.utils import train_val_test_split
 from src.utils.molecular_parsing import parse_filename
-from src.config.configParser import ConfigParserWrapper
 from src.data.data_preprocessing.utils import extract_coordinates, parse_pdb_streaming
 
 

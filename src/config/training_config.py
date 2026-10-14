@@ -56,25 +56,14 @@ class TrainingConfig:
     # Minimum change in validation loss to qualify as an improvement.
     minimum_delta: float = 0.01
     
-    # Optional hard cap on training steps; if None, epoch-based stopping is used.
-    max_train_steps: int | None = None
-    # Number of train steps to run per epoch abstraction.
-    steps_per_epoch: int = 1000
     # Evaluate validation metrics every N train steps.
-    eval_every_steps: int = 1000
+    eval_every_n_epochs: int = 1
     # Log training metrics every N train steps.
-    log_every_steps: int = 100
+    log_every_n_batches: int = 100
 
-    # Overlap next-batch GPU prep with current step compute using a CUDA stream.
-    # If True, the next batch is prepared on the GPU while the current batch is being processed. This can improve throughput but may increase memory usage.
-    use_cuda_prefetcher: bool = False   
     compile_model: bool = True
     # Number of explicit warmup train steps after torch.compile. Set to 0 to disable.
     compile_warmup_steps: int = 5
-    # Enable CUDA AMP mixed precision for faster training on supported GPUs.
-    use_mixed_precision: bool = True
-    # AMP autocast dtype on CUDA: "float16" or "bfloat16".
-    amp_dtype: str = "bfloat16"
  
     # Automatically retry training on CUDA OOM by lowering batch size.
     oom_retry_enabled: bool = True
