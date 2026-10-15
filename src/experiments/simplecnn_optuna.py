@@ -117,7 +117,6 @@ def main() -> None:
         batch_size = trial.suggest_categorical("batch_size", [64, 128, 256, 512])
         patience = trial.suggest_int("patience", 3, 10)
         minimum_delta = trial.suggest_float("minimum_delta", 1e-3, 2e-2, log=True)
-        use_mixed_precision = trial.suggest_categorical("use_mixed_precision", [False, True])
         compile_model = trial.suggest_categorical("compile_model", [True, False])
 
         config = TrainingConfig(
@@ -136,7 +135,6 @@ def main() -> None:
             eval_every_steps=args.eval_every_steps,
             log_every_steps=args.log_every_steps,
             time_limit=args.trial_time_limit,
-            use_mixed_precision=use_mixed_precision,
             compile_model=compile_model,
             stream_train_split=False,
             stream_validation_split=False,

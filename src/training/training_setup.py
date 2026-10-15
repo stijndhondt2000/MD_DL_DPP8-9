@@ -3,10 +3,10 @@ import gc
 from datetime import datetime
 import torch
 from dotenv import load_dotenv
-from torch.utils.data import DataLoader
 from src.data.data_loading.HFDataloader import initialize_dataloaders
 from src.training.model_testing import model_testing
-from src.training.utils import get_device, training_loop
+from src.training.utils import get_device
+from src.training.training_loop import training_loop
 from src.infrastructure.cacheManager import cacheManager
 from src.config.training_config import TrainingConfig, TestConfig
 from src.training.training_loop import training_loop
@@ -122,7 +122,6 @@ def train_model(config: TrainingConfig, model_name: str, streaming: bool = False
                 optimizer = config.optimizer(model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay)
                 
                 
-                effective_amp_dtype = config.amp_dtype
 
                 # Set up device and CUDA settings before moving model to device
                 if device.type == "cuda":
@@ -131,15 +130,7 @@ def train_model(config: TrainingConfig, model_name: str, streaming: bool = False
                     torch.backends.cuda.matmul.allow_tf32 = True
                     torch.backends.cudnn.allow_tf32 = True
                     torch.set_float32_matmul_precision("high")
-                    if config.use_mixed_precision:
-                        dtype_name = str(config.amp_dtype).strip().lower()
-                        wants_bf16 = dtype_name in {"bf16", "bfloat16", "torch.bfloat16"}
-                        if wants_bf16 and not torch.cuda.is_bf16_supported():
-                            effective_amp_dtype = "float16"
-                            logger.warning(
-                                "Requested AMP dtype bfloat16, but CUDA device does not support native bf16. "
-                                "Falling back to float16."
-                            )
+
                 # Move model to device and compile if requested
                 model.to(device)
                 if config.compile_model:
@@ -169,14 +160,9 @@ def train_model(config: TrainingConfig, model_name: str, streaming: bool = False
                     optimizer=optimizer,
                     criterion=criterion,
                     max_epochs=config.max_nr_epochs,
-                    max_train_steps=config.max_train_steps,
-                    steps_per_epoch=config.steps_per_epoch,
-                    eval_every_steps=config.eval_every_steps,
-                    log_every_steps=config.log_every_steps,
-                    use_cuda_prefetcher=config.use_cuda_prefetcher,
+                    eval_every_n_epochs=config.eval_every_n_epochs,
+                    log_every_n_batches=config.log_every_n_batches,
                     batch_preparation_fn=batch_preparation_fn,
-                    use_mixed_precision=config.use_mixed_precision,
-                    amp_dtype=effective_amp_dtype,
                     validation_max_batches=config.validation_max_batches,
                     patience=config.patience,
                     minimum_delta=config.minimum_delta,
@@ -191,8 +177,6 @@ def train_model(config: TrainingConfig, model_name: str, streaming: bool = False
                     criterion,
                     device,
                     batch_preparation_fn=batch_preparation_fn,
-                    use_mixed_precision=config.use_mixed_precision,
-                    amp_dtype=effective_amp_dtype,
                     output_dir=run_dir,
                     max_batches=config.test_max_batches,
                 )
