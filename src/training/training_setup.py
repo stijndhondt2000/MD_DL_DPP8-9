@@ -9,6 +9,7 @@ from src.training.model_testing import model_testing
 from src.training.utils import get_device, training_loop
 from src.infrastructure.cacheManager import cacheManager
 from src.config.training_config import TrainingConfig, TestConfig
+from src.training.training_loop import training_loop
 import torch.nn as nn
 import os
 from src.infrastructure.logger import init_logger, get_logger, DEBUG as LOGGING_DEBUG
