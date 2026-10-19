@@ -56,9 +56,9 @@ class TrainingConfig:
     # Minimum change in validation loss to qualify as an improvement.
     minimum_delta: float = 0.01
     
-    # Evaluate validation metrics every N train steps.
+    # Evaluate validation metrics every N epochs
     eval_every_n_epochs: int = 1
-    # Log training metrics every N train steps.
+    # Log training metrics every N train batches.
     log_every_n_batches: int = 100
 
     compile_model: bool = True

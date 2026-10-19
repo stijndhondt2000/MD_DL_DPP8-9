@@ -30,7 +30,7 @@ def apply_transformations_to_samples(samples: list) -> tuple[torch.Tensor, torch
     Args:
         samples: Samples containing coordinates, atom counts, and binding types.
     Returns:
-        ``(images, labels)`` with shapes ``[B, C, H, W]`` and ``[B]``.
+        ``(images, labels)`` with shapes ``[B, C, H, W]`` (batch of images, channels, height, width) and ``[B]`` (batch of labels).
     """
     # the transformations should be the same as those applied during training, except for any random scrambling or augmentations that would make the sample non-deterministic
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -80,15 +80,6 @@ def _normalize_spatial_scores(spatial_scores: torch.Tensor) -> torch.Tensor:
         return torch.zeros_like(spatial_scores)
     return spatial_scores / max_score
 
-
-def remove_batch_dimension(attributions: torch.Tensor) -> torch.Tensor:
-    """Remove the batch dimension from attributions if present."""
-    if attributions.ndim == 4:
-        return attributions[0]
-    elif attributions.ndim == 3:
-        return attributions
-    else:
-        raise ValueError(f"Expected attribution shape [C,H,W] or [1,C,H,W], got {tuple(attributions.shape)}")
 
 def calculate_spacial_scores(attribution: torch.Tensor) -> torch.Tensor:
     """Calculate spatial scores from the attribution result.
@@ -184,20 +175,22 @@ def generate_interpretability_attribution(
 
     sample_batch = sample.unsqueeze(0).to(device).clone().detach()
     target_idx = int(predicted_class.item())  # batch size is 1
-
+    # for each method, compute the attribution and store the result
     for method, method_fn in methods.items():
+        # .items -> (keys,values) -> (method, method_fn)
         if method != "occlusion":
             sample_batch.requires_grad_(True)
         print(f"Generating interpretability insights using method: {method}")
         attributions = method_fn(inputs=sample_batch, target=target_idx)
+        # store the attribution result in the dictionary
         attributions_results[method] = attributions
-
+    # return the dictionary of attribution results 
     return attributions_results
 
 
 def _attribution_to_atom_scores(attributions: torch.Tensor, num_atoms: int) -> torch.Tensor:
-    """Map attribution tensor back to first num_atoms entries of flattened 2D grid."""
-    # Aggregate channel-wise magnitude so each flattened pixel maps to one scalar score.
+    """Map attribution tensor back to first num_atoms entries of flattened 2D grid/image."""
+    # Aggregate channel-wise magnitude (neem de som van de absolute waarden van alle attributie scores van de drie channels (abs().sum(dim=0)), en plaats alle waardes in een lange tensor) so each flattened pixel maps to one scalar score.
     pixel_scores = attributions.detach().cpu().abs().sum(dim=0).reshape(-1)
     if num_atoms > pixel_scores.numel():
         raise ValueError(f"num_atoms={num_atoms} exceeds available pixel scores={pixel_scores.numel()}")
@@ -367,6 +360,7 @@ def execute_interpretability(pdb_file=None, pdb_directory=None, output_dir=None,
         model = _initilize_classification_model(model_checkpoint, device=device)
     else:
         model
+    # setup the interpretability methods using the provided method arguments
     if methods is None:
         methods = solve_methods(CaptumInterpreter(model), method_args=method_args)
     delta_time = time.time() - start_time
@@ -407,7 +401,7 @@ def execute_interpretability(pdb_file=None, pdb_directory=None, output_dir=None,
         percentages = torch.nn.functional.softmax(logits, dim=1) * 100
         prob_string = sample_prefix + ": " + probablity_string(percentages, class_labels)
         print(prob_string)
-        print(prob_string, file=open(os.path.join(output_dir, "classification_probabilities.txt"), "a"))
+        print(prob_string, file=open(os.path.join(image_dir, f"{sample_prefix}_classification_probabilities.txt"), "a"))
         print(f"Predicted class: {predicted_class}")
         sample_insights: dict[str, AttributionResult] = generate_interpretability_attribution(methods, predicted_class, sample_tensor, device=device)
         predicted_class_label = class_labels[predicted_class]  # convert from tensor -> int (class label index) -> label name
@@ -514,7 +508,8 @@ def execute_interpretability(pdb_file=None, pdb_directory=None, output_dir=None,
             print(f"\tSaved comparison plot for {method} to {comparison_save_path}")
             pdb_filepath = sample["pdb_id"]
             if pdb_directory:
-                pdb_filepath = os.path.join(pdb_directory, f"{pdb_id}.pdb")
+                # unique pdb_filepath for each sample in the directory
+                pdb_filepath = os.path.join(pdb_directory, method, f"{pdb_id}.pdb")
             colored_pdb_path = save_attribution_colored_pdbs(
                 pdb_file=pdb_filepath,
                 output_dir=image_dir,

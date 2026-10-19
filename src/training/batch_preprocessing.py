@@ -119,21 +119,25 @@ def _scramble_in_place(coords, num_atoms, diameter=140.0, seed=None):
     rotated = coords
     if seq_len >= 2:
         has_two_atoms = n_real >= 2
+        # Apply random rotation only to samples with at least two valid atoms. Samples with fewer than two valid atoms remain unchanged.
         if bool(has_two_atoms.any()):
+            # Compute the unit vector from the first to the second atom for each sample.
             vectors = coords[:, 1, :] - coords[:, 0, :]
             vectors = vectors / torch.linalg.norm(vectors, dim=1, keepdim=True).clamp_min(1e-8)
 
+            # Generate random unit vectors for each sample to define a rotation axis.
             random_vectors = torch.randn(batch_size, 3, **rand_kwargs)
             random_vectors = random_vectors / torch.linalg.norm(random_vectors, dim=1, keepdim=True).clamp_min(1e-8)
 
+            # Compute the rotation matrix for each sample using Rodrigues' rotation formula.
             v = torch.cross(vectors, random_vectors, dim=1)
             c = (vectors * random_vectors).sum(dim=1)
             s = torch.linalg.norm(v, dim=1)
-
             valid_rotation = has_two_atoms & (s >= 1e-8)
             axis = torch.zeros_like(v)
             axis[valid_rotation] = v[valid_rotation] / s[valid_rotation].unsqueeze(1)
 
+            # Compute the rotation matrix for each sample using Rodrigues' rotation formula.
             kmat = torch.zeros(batch_size, 3, 3, dtype=coords.dtype, device=device)
             kmat[:, 0, 1] = -axis[:, 2]
             kmat[:, 0, 2] = axis[:, 1]
@@ -141,7 +145,6 @@ def _scramble_in_place(coords, num_atoms, diameter=140.0, seed=None):
             kmat[:, 1, 2] = -axis[:, 0]
             kmat[:, 2, 0] = -axis[:, 1]
             kmat[:, 2, 1] = axis[:, 0]
-
             kmat_sq = torch.bmm(kmat, kmat)
             eye = torch.eye(3, dtype=coords.dtype, device=device).unsqueeze(0).expand(batch_size, -1, -1)
             factor = ((1.0 - c) / (s * s + 1e-12)).unsqueeze(1).unsqueeze(2)
@@ -187,7 +190,7 @@ def _coords_to_rgb(coords, num_atoms):
 
     out = (out - coords_min.unsqueeze(1)) / coords_range.unsqueeze(1)
     out = torch.where(valid_mask_3d, out, torch.zeros_like(out))
-
+    # [B, TARGET_PIXELS, TARGET_PIXELS, 3] -> [B, 3, TARGET_SIZE, TARGET_SIZE]
     out = out.view(batch_size, TARGET_SIZE, TARGET_SIZE, 3).permute(0, 3, 1, 2).contiguous()
     return out
 

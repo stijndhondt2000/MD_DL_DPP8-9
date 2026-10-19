@@ -9,7 +9,9 @@ import torch
 from src.cli.interpretability import execute_interpretability, save_attribution_colored_pdbs_spatial_scores, write_coloring_script
 from src.utils.labels import ligant_to_class
 
-
+import numpy as np
+import matplotlib.pyplot as plt
+# TODO : add a function to check if the interpretability results for a given output directory already exist, and if so, skip the job
 ROOT_DIRECTORY = Path(
     "/project_antwerp/dataset/decompressed_both_datasets/"
 )
@@ -51,12 +53,15 @@ def already_completed(output_dir: Path) -> bool:
     :param output_dir: Directory where interpretability results are expected to be saved.
     :return: True if the results already exist, False otherwise.
     """
+
+    expected_files = 208
     # already completed if the images subfolder contains 148 files
     images_dir = output_dir / "images"
-    if images_dir.exists() and len(list(images_dir.glob("*"))) >= 148:
+    if images_dir.exists() and len(list(images_dir.glob("*"))) >= expected_files:
         return True
     
     return False
+
 def worker(gpu_id, job_queue):
     # preload both models to avoid reloading them for each job
 
@@ -217,9 +222,6 @@ def main():
     for p in workers:
         p.join()
 
-from PIL import Image
-import numpy as np
-import matplotlib.pyplot as plt
 
 
 def recover_spatial_scores(image_path, threshold=15/ 255):
@@ -228,7 +230,6 @@ def recover_spatial_scores(image_path, threshold=15/ 255):
     dark_pixels = image.max(axis=-1) <= threshold
     spatial_scores = dark_pixels.astype(np.float32) * 100.0
     return spatial_scores
-
 def pdb_worker(job_queue):
     threshold = 0.5
     while True:
@@ -365,5 +366,6 @@ def fix_pdbs():
     # Wait for workers.
     for p in workers:
         p.join()          
+
 if __name__ == "__main__":
-    fix_pdbs()
+    main()

@@ -247,9 +247,7 @@ def apply_method(method, interpreter: CaptumInterpreter, inputs, target, *args):
         raise ValueError(f"Unsupported method requested: {method}")
     return result
 
-def main():
-    """Run Captum methods on a checkpoint and export attribution visualizations."""
-    # 1) CLI options controlling methods, sample limits, and output behavior.
+def argparse_methods() -> dict[str, callable]:
     parser = argparse.ArgumentParser(description="Run Captum interpretability on a trained model checkpoint.")
     parser.add_argument("--checkpoint", required=True, help="Path to model .pth checkpoint")
     parser.add_argument("--config", default=None, help="Optional training config path (.pt or .json)")
@@ -307,14 +305,13 @@ def main():
         action="store_true",
         help="Disable per-sample plots and only save aggregated hotspot maps",
     )
-    # add a streaming flag to force using streaming dataloader, default False
-    parser.add_argument(
-        "--streaming",
-        action="store_true",
-        help="Force using streaming dataloader. By default, the script tries to initialize the regular dataloader and falls back to streaming if it fails. Use this flag to skip the \
-         regular dataloader initialization entirely.",
-    )
     args = parser.parse_args()
+    return args
+
+def main():
+    """Run Captum methods on a checkpoint and export attribution visualizations."""
+    # 1) CLI options controlling methods, sample limits, and output behavior.
+    args = argparse_methods()
 
     # Load optional env vars (for datasets, tokens, cache locations, etc.).
     load_dotenv()
@@ -339,12 +336,8 @@ def main():
         config.batch_size = args.batch_size
 
     # Build dataloader for only the split requested by the user.
-    if args.streaming:
-        print("Initializing streaming dataloader...")
-        dataloaders = initialize_streaming_dataloader(config, splits=[args.split], keep_all_columns=True, shuffle=True)
-    else:
-        print("Initializing regular dataloader...")
-        dataloaders = initialize_dataloaders(config, splits=[args.split], keep_all_columns=True)
+    print("Initializing regular dataloader...")
+    dataloaders = initialize_dataloaders(config, splits=[args.split], keep_all_columns=True)
     data_iter = iter(dataloaders[args.split])
 
     # Initialize model, then load learned weights.
@@ -353,7 +346,7 @@ def main():
     state_dict = _load_state_dict(args.checkpoint, device)
     _load_weights(model, state_dict)
     model.eval()
-
+    # Wrap model in Captum interpreter for attribution methods.
     interpreter = CaptumInterpreter(model)
     class_names = LabelEncoder().get_classes()
     nr_classes = len(class_names)
@@ -367,6 +360,7 @@ def main():
     target = args.target if args.target is not None else None
 
     # Running sums used to compute average hotspot maps later.
+    # Prepare dicts for global, per-class, and per-class-per-dpp aggregations.
     global_sum: dict[str, torch.Tensor] = {}
     global_count: dict[str, int] = {method: 0 for method in args.methods}
     class_sum: dict[str, list[torch.Tensor | None]] = {
@@ -407,10 +401,6 @@ def main():
         dpp_labels = batch.get("dpp_class")  # Keep raw DPP labels for per-class aggregation and display, if available.
         dpp_raw = batch.get("dpp_class")
 
-        if args.max_samples is not None:
-            inputs = inputs[: args.max_samples]
-            labels = labels[: args.max_samples]
-            dpp_raw = dpp_raw[: args.max_samples]
 
         if args.max_total_samples is not None:
             remaining = args.max_total_samples - processed_samples

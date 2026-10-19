@@ -25,18 +25,23 @@ def solve_methods(interpreter: CaptumInterpreter, method_args) -> dict[str, Call
     :param method_str: String identifier for the interpretability method (e.g., "integrated_gradients").
     :return: Corresponding interpretability method object.
     """
+    """
+    """
     methods = {}
     for method, args in method_args.items():
         if method == "integrated_gradients":
             n_steps = args["steps"]
             # keep argparse-driven parameters configurable per run
+            # methods["integrated_gradients"](inputs) = interpreter.integrated_gradients(inputs, target=target, n_steps=n_steps) 
             methods[method] = lambda inputs, target: interpreter.integrated_gradients(
                 inputs,
                 target=target,
                 n_steps=n_steps,
             )
+
         elif method == "saliency":
             methods[method] = lambda inputs, target: interpreter.saliency(inputs, target=target)
+
         elif method == "occlusion":
             patch_size = args["patch_size"]
             shift_size = args["shift_size"]
@@ -202,7 +207,14 @@ class CaptumInterpreter:
             target=resolved_target,
         )
 
-    def occlusion(self, inputs: torch.Tensor, target: int | torch.Tensor | None = None, patch_size: int = 1, shift_size: int = 1, perturbations_per_eval: int = 10) -> AttributionResult:
+    def occlusion(
+        self, 
+        inputs: torch.Tensor, 
+        target: int | torch.Tensor | None = None, 
+        patch_size: int = 1, 
+        shift_size: int = 1, 
+        perturbations_per_eval: int = 10,
+    ) -> AttributionResult:
         self._prepare_model()
         ablator = Occlusion(self.model)
         with torch.enable_grad():

@@ -117,16 +117,7 @@ def calculate_statistics(
             all_labels.extend(labels_cpu)
             all_predictions.extend(predicted_cpu)
 
-            if "dpp_class" in data:
-                has_dpp_class = True
-                dpp_values = data["dpp_class"]
-                if isinstance(dpp_values, torch.Tensor):
-                    dpp_values = dpp_values.cpu().numpy()
-                for label, prediction, dpp_value in zip(labels_cpu, predicted_cpu, dpp_values):
-                    if dpp_value is None:
-                        continue
-                    dpp_class_examples[dpp_value]["labels"].append(label)
-                    dpp_class_examples[dpp_value]["predictions"].append(prediction)
+
 
     # statistics -> dpp_class -> accuracy, loss, precision, recall, f1_score, confusion_matrix    
     statistics = {}
@@ -147,28 +138,6 @@ def calculate_statistics(
         statistics["confusion_matrix_normalized"] = confusion_matrix(all_labels, all_predictions, normalize='true', labels=list(range(5)))
     if "fpr" in statistics_to_compute:
         statistics["fpr"] = calculate_fpr_multiclass(statistics["confusion_matrix"])
-
-    if has_dpp_class or any(len(v["labels"]) > 0 for v in dpp_class_examples.values()):
-        statistics["dpp_class"] = {}
-        dpp8_count = len(dpp_class_examples["dpp8"]["labels"])
-        dpp9_count = len(dpp_class_examples["dpp9"]["labels"])
-
-        for group_name in ["dpp8", "dpp9"]:
-            group_stats = _compute_label_prediction_statistics(
-                dpp_class_examples[group_name]["labels"],
-                dpp_class_examples[group_name]["predictions"],
-                statistics_to_compute,
-            )
-            group_stats["num_examples"] = len(dpp_class_examples[group_name]["labels"])
-            statistics["dpp_class"][group_name] = group_stats
-
-        weighted_accuracy_numerator = 0.0
-        if dpp8_count > 0:
-            weighted_accuracy_numerator += statistics["dpp_class"]["dpp8"].get("accuracy", 0.0) * dpp8_count
-        if dpp9_count > 0:
-            weighted_accuracy_numerator += statistics["dpp_class"]["dpp9"].get("accuracy", 0.0) * dpp9_count
-
-
 
     return statistics
 
