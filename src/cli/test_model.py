@@ -70,13 +70,6 @@ def _build_parser() -> argparse.ArgumentParser:
 	parser.add_argument("--batch-size", type=int, default=None, help="Override evaluation batch size.")
 	parser.add_argument("--num-cpus", type=int, default=None, help="Override dataloader worker count.")
 	parser.add_argument("--max-batches", type=int, default=None, help="Cap number of test batches.")
-	# streaming flag to force using streaming dataloader, default False
-	parser.add_argument(
-		"--streaming",
-		action="store_true",
-		help="Force using streaming dataloader. By default, the script tries to initialize the regular dataloader and falls back to streaming if it fails. Use this flag to skip the \
-		 regular dataloader initialization entirely.",
-	)
 
 	parser.add_argument(
 		"--device",
@@ -141,7 +134,7 @@ def main() -> None:
 	)
 	criterion = config.criterion() if config.criterion else torch.nn.CrossEntropyLoss()
 	batch_preparation_fn = _resolve_batch_preparation_fn(config, model_name)
-	test_loaders = _build_test_dataloader(config, splits=args.splits, streaming=args.streaming)
+	test_loaders = _build_test_dataloader(config, splits=args.splits )
 	logging.info(f"Evaluating checkpoint: {checkpoint_path}")
 	logging.info(f"Model: {model_name} with args={config.model_args}")
 	logging.info(f"Batch size: {config.batch_size}, num_cpus: {config.num_cpus}")

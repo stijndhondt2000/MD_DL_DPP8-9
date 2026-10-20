@@ -131,7 +131,6 @@ def main() -> None:
             weight_decay=weight_decay,
             patience=patience,
             minimum_delta=minimum_delta,
-            max_train_steps=args.max_train_steps,
             eval_every_steps=args.eval_every_steps,
             log_every_steps=args.log_every_steps,
             time_limit=args.trial_time_limit,

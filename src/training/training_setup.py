@@ -82,7 +82,7 @@ def initialize_run_directory(model_name):
     return model_dir
     
 
-def train_model(config: TrainingConfig, model_name: str, streaming: bool = False):
+def train_model(config: TrainingConfig, model_name: str):
     """Main training function - single entry point for all models"""
     load_dotenv() # Load environment variables from .env file
     batch_preparation_fn = config.batch_preparation_fn 
@@ -110,7 +110,7 @@ def train_model(config: TrainingConfig, model_name: str, streaming: bool = False
 
                 # Initialize model and data for this attempt (batch size may change after OOM).
                 model = config.model_class(**config.model_args)
-                dataloaders = initialize_dataloaders(config, dotenv_manager=dotenv_manager, streaming=streaming)
+                dataloaders = initialize_dataloaders(config, dotenv_manager=dotenv_manager)
 
                 # Setup training
                 device = get_device()

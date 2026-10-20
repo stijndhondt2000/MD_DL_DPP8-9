@@ -30,7 +30,7 @@ def initialize_dataloaders(config: TrainingConfig, dotenv_manager: dotenvManager
     The cache must contain sharded safetensors with ``data``, ``labels``, and
     ``num_atoms`` fields. ``config.dataset_size`` limits each split, while
     ``config.batch_size`` and ``config.num_cpus`` control batching and worker
-    count. ``keep_all_columns`` and ``streaming`` are retained for API
+    count. ``keep_all_columns`` are retained for API
     compatibility with older loader implementations.
 
     Returns:
