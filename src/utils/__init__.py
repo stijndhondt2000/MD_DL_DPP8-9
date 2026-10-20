@@ -1,4 +1,4 @@
-from src.utils.interpretability import AttributionResult
-from src.utils.interpretability import CaptumInterpreter
+from src.interpretability.interpretability_utils import AttributionResult
+from src.interpretability.interpretability_utils import CaptumInterpreter
 
 __all__ = ["AttributionResult", "CaptumInterpreter"]

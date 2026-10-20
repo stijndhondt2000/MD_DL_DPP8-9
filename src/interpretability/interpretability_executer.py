@@ -11,7 +11,7 @@ import numpy as np
 from src.data.data_preprocessing.utils import extract_pdb_file, extract_pdb_files_from_directory
 from src.training.LabelEncoder import LabelEncoder
 from src.training.batch_preprocessing import _coords_to_rgb, _coords_to_tensor, prepare_model_batch
-from src.utils.interpretability import AttributionResult, CaptumInterpreter, _initilize_classification_model, solve_methods
+from src.interpretability.interpretability_utils import AttributionResult, CaptumInterpreter, _initilize_classification_model, solve_methods
 from src.utils.resolvers import (
     _extract_class_name,
     _load_config_from_artifacts,
@@ -360,7 +360,6 @@ def execute_interpretability(pdb_file=None, pdb_directory=None, output_dir=None,
         model = _initilize_classification_model(model_checkpoint, device=device)
     else:
         model
-    # setup the interpretability methods using the provided method arguments
     if methods is None:
         methods = solve_methods(CaptumInterpreter(model), method_args=method_args)
     delta_time = time.time() - start_time
@@ -380,13 +379,14 @@ def execute_interpretability(pdb_file=None, pdb_directory=None, output_dir=None,
 
     image_dir = os.path.join(output_dir, "images")
     os.makedirs(image_dir, exist_ok=True)
-
     samples_tensor, true_labels = apply_transformations_to_samples(samples)
     delta_time = time.time() - start_time
     start_time = time.time()
     print(f"transforming samples: {delta_time}")
     insights = {method: {} for method in methods.keys()}
     print(f"Transformed sample tensor shape: {samples_tensor.shape}, true label: {class_labels[true_labels[0]]}")
+    num_atoms = samples[0]["num_atoms"]
+    # create all the attribution maps 
     for i, sample_tensor in enumerate(samples_tensor):
         sample = samples[i]
         true_label = true_labels[i].item()
@@ -400,8 +400,9 @@ def execute_interpretability(pdb_file=None, pdb_directory=None, output_dir=None,
         logits, predicted_class = apply_classification(sample_tensor, model, device=device)
         percentages = torch.nn.functional.softmax(logits, dim=1) * 100
         prob_string = sample_prefix + ": " + probablity_string(percentages, class_labels)
+        # print the classification probabilities to the console and save them to a text file in the output directory
         print(prob_string)
-        print(prob_string, file=open(os.path.join(image_dir, f"{sample_prefix}_classification_probabilities.txt"), "a"))
+        print(prob_string, file=open(os.path.join(output_dir, "classification_probabilities.txt"), "a"))
         print(f"Predicted class: {predicted_class}")
         sample_insights: dict[str, AttributionResult] = generate_interpretability_attribution(methods, predicted_class, sample_tensor, device=device)
         predicted_class_label = class_labels[predicted_class]  # convert from tensor -> int (class label index) -> label name
@@ -411,9 +412,12 @@ def execute_interpretability(pdb_file=None, pdb_directory=None, output_dir=None,
         delta_time = time.time() - start_time
         start_time = time.time()
         print(f"generating attribution for one frame: {delta_time}")
+
     delta_time = time.time() - start_time
     start_time = time.time()
     print(f"generating attribution: {delta_time}")
+
+    # calculate the average attribution across all samples for each method 
     # insights = {method -> {pdb_id -> AttributionResult}}
     for method, insight in insights.items():
         # take the average of the attribution scores across all samples for this method
@@ -422,6 +426,7 @@ def execute_interpretability(pdb_file=None, pdb_directory=None, output_dir=None,
             avg_attribution += attribution_result.attributions.detach().cpu()
         avg_attribution /= len(insight)
         insights[method]["average"] = avg_attribution
+
     # save the insigths as image, where the attributions are mapped from gray (low attribution) to red (high attribution) on a 2d heatmap using matplotlib, one image per method
     for method, insight in insights.items():
         blurred_correct_predictions = 0
@@ -506,17 +511,18 @@ def execute_interpretability(pdb_file=None, pdb_directory=None, output_dir=None,
             plt.savefig(comparison_save_path)
             plt.clf()
             print(f"\tSaved comparison plot for {method} to {comparison_save_path}")
-            pdb_filepath = sample["pdb_id"]
+            pdb_filepath = pdb_id
             if pdb_directory:
-                # unique pdb_filepath for each sample in the directory
-                pdb_filepath = os.path.join(pdb_directory, method, f"{pdb_id}.pdb")
+                pdb_filepath = os.path.join(pdb_directory, f"{pdb_id}.pdb")
+            # create a colored PDB file with the attribution scores stored in the B-factor column for visualization in PyMOL
             colored_pdb_path = save_attribution_colored_pdbs(
                 pdb_file=pdb_filepath,
                 output_dir=image_dir,
                 attribution=attribution,
-                num_atoms=sample["num_atoms"],
+                num_atoms=num_atoms,
                 method=method
             )
+            # create a PyMOL script to load and visualize the colored PDBs with a spectrum from gray (low attribution) to red (high attribution) and sticks for high-attribution residues
             script_path = Path.joinpath(Path(colored_pdb_path).parent, f"{Path(colored_pdb_path).stem}.pml")
             write_coloring_script([colored_pdb_path], script_path, threshold=threshold)
         blur_accuracy = blurred_correct_predictions / len(insight) * 100

@@ -3,21 +3,17 @@ import os
 import time
 from pathlib import Path
 import contextlib
-from src.utils.interpretability import CaptumInterpreter, _initilize_classification_model, solve_methods
+from src.interpretability.aggregate_replicas import count_significant_residues
+from src.interpretability.interpretability_utils import CaptumInterpreter, _initilize_classification_model, solve_methods
 import torch
 
-from src.cli.interpretability import execute_interpretability, save_attribution_colored_pdbs_spatial_scores, write_coloring_script
+from src.interpretability.interpretability_executer import execute_interpretability, save_attribution_colored_pdbs_spatial_scores, write_coloring_script
 from src.utils.labels import ligant_to_class
-
+from dotenv import load_dotenv 
 import numpy as np
 import matplotlib.pyplot as plt
 # TODO : add a function to check if the interpretability results for a given output directory already exist, and if so, skip the job
-ROOT_DIRECTORY = Path(
-    "/project_antwerp/dataset/decompressed_both_datasets/"
-)
-ROOT_OUTPUT_DIRECTORY = Path(
-    "/project_antwerp/dataset/decompressed_both_datasets/output2/"
-)
+
 
 THRESHOLD = 0.5
 
@@ -135,7 +131,14 @@ def worker(gpu_id, job_queue):
             )
 
 
-def main():
+
+def execute_model_interpretation(output_dir: Path = None, input_dir: Path = None):
+    """
+    Execute the model interpretation for all trajectories.
+
+    :param output_dir: The directory where the output will be saved.
+    :param input_dir: The directory where the input data is located.
+    """
     num_gpus = torch.cuda.device_count()
 
     if num_gpus == 0:
@@ -150,7 +153,7 @@ def main():
     # Create jobs: (replica, model)
     jobs = []
 
-    for dpp_dir in ROOT_DIRECTORY.iterdir():
+    for dpp_dir in input_dir.iterdir():
         if not dpp_dir.is_dir():
             continue
 
@@ -174,7 +177,7 @@ def main():
                 for model_name, checkpoint in MODEL_CHECKPOINTS.items():
 
                     output_dir = (
-                        ROOT_OUTPUT_DIRECTORY
+                        output_dir
                         / dpp
                         / ligand
                         / replica
@@ -224,71 +227,7 @@ def main():
 
 
 
-def recover_spatial_scores(image_path, threshold=15/ 255):
-    image = plt.imread(image_path)[..., :3].astype(np.float32)
 
-    dark_pixels = image.max(axis=-1) <= threshold
-    spatial_scores = dark_pixels.astype(np.float32) * 100.0
-    return spatial_scores
-def pdb_worker(job_queue):
-    threshold = 0.5
-    while True:
-        job = job_queue.get()
-
-        if job is None:
-            break
-        (
-            replica_dir,
-            output_dir,
-            sample
-        ) = job
-        # integrated_gradients, occlusion, saliency overlay
-        # get the corresponding PDB file fromt he replica dir
-        try:
-            pdb_name = sample.name.replace("_blurred_sample.png", ".pdb")
-            if "integrated_gradients" in sample.name:
-                method = "integrated_gradients"
-                pdb_name = pdb_name.replace("_integrated_gradients", "")
-
-            elif "occlusion" in sample.name:
-                method = "occlusion"
-                pdb_name = pdb_name.replace("_occlusion", "")
-
-            elif "saliency" in sample.name:
-                method = "saliency"
-                pdb_name = pdb_name.replace("_saliency", "")
-            else:
-                print(f"Unknown method for sample {sample.name}. Skipping.")
-            if "average" in sample.name:
-                method = method + "_average"
-                # find the file in the replica dir that contains frame_1000 and ends with .pdb
-                pdb_name =  next(replica_dir.glob("*frame_1000.pdb")).name
-            original_pdb_file = replica_dir / pdb_name
-            # recover the spatial scores from the overlay and save them in the PDB file
-            spatial_scores = recover_spatial_scores(
-                image_path=sample,
-            )
-            spatial_scores = torch.from_numpy(
-                spatial_scores.reshape(-1)
-            ).float()
-
-            # stop internal prints  statements from cluttering the output
-            with contextlib.redirect_stdout(open(os.devnull, "w")):
-
-
-                colored_pdb_path = save_attribution_colored_pdbs_spatial_scores(
-                    pdb_file=original_pdb_file,
-                    output_dir=output_dir,
-                    spatial_scores=spatial_scores,
-                    method=method,
-                )
-                script_path = Path.joinpath(Path(colored_pdb_path).parent, f"{Path(colored_pdb_path).stem}.pml")
-
-                write_coloring_script([colored_pdb_path], script_path, threshold=threshold)
-
-        except Exception as e:
-            print(f"Error processing sample {sample.name} in {output_dir}: {e}")
-def fix_pdbs():
     ctx = mp.get_context("spawn")
 
     job_queue = ctx.Queue()
@@ -368,4 +307,29 @@ def fix_pdbs():
         p.join()          
 
 if __name__ == "__main__":
-    main()
+    # read OUTPUT_DIR from .env file 
+    load_dotenv()
+    root_input_dir = os.path("/project_antwerp/dataset/decompressed_both_datasets/")
+    root_output_dir = os.getenv("OUTPUT_DIR", default="/project_antwerp/MD_DL_DPP8-9/output")
+    interpretability_output_dir = os.path.join(root_output_dir, "interpretability")
+    all_frames_output_dir = os.path.join(interpretability_output_dir, "all_frames")
+    aggregated_replicas_output_dir = os.path.join(interpretability_output_dir, "aggregated_replicas")
+    os.makedirs(all_frames_output_dir, exist_ok=True)
+    os.makedirs(aggregated_replicas_output_dir, exist_ok=True)
+# ROOT_DIRECTORY = Path(
+#     "/project_antwerp/dataset/decompressed_both_datasets/"
+# )
+# ROOT_OUTPUT_DIRECTORY = Path(
+#     "/project_antwerp/dataset/decompressed_both_datasets/output2/"
+# )
+    execute_model_interpretation(
+        input_dir=root_input_dir,
+        output_dir=all_frames_output_dir,
+
+    )
+    count_significant_residues(
+        input_folder=all_frames_output_dir,
+        output_folder_root=aggregated_replicas_output_dir,
+        base_pdb_file_folder=root_input_dir,
+        methods=list(METHOD_ARGS.keys()),
+    )

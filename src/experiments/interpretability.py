@@ -15,7 +15,7 @@ from src.models.OneLayer import OneLayerNet
 from src.models.SCNN import SCNN
 from src.data.data_loading.HFDataloader import initialize_dataloaders, initialize_streaming_dataloader
 from src.training.LabelEncoder import LabelEncoder
-from src.utils.interpretability import CaptumInterpreter
+from src.interpretability.interpretability_utils import CaptumInterpreter
 from src.config.training_config import TrainingConfig
 
 
