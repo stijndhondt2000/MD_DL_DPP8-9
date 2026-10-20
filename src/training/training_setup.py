@@ -94,8 +94,6 @@ def train_model(config: TrainingConfig, model_name: str, streaming: bool = False
     logger.info(f"Training configuration: {config}")
     logger.info(f"Weight Decay: {config.weight_decay}, Learning Rate: {config.learning_rate}")
     logger.info(f"Max Num Epochs: {config.max_nr_epochs}")
-    if config.max_train_steps is not None:
-        logger.info(f"Max Train Steps: {config.max_train_steps}")
     # Initialize the cache manager
     dotenv_manager = dotenvManager()
     # Determine the maximum number of retries for OOM errors
