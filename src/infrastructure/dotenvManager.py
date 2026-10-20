@@ -27,7 +27,7 @@ class dotenvManager:
         with open(self.dotenv_path, "a") as f:
             f.write(f"{var_name}={value}\n")
     def get_safetensors_directory(self):
-        return self.get_env_variable("SAFETENSORS_DIR", required=True)
+        return self.get_env_variable("SAFETENSOR_DIR", required=True)
 
     def get_dataset_directory(self):
         return self.get_env_variable("DATASET_DIR", required=True)
