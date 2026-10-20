@@ -30,7 +30,7 @@ def generate_dataset_from_tars(streaming_pdb_dataset_path, tar_folder, regenerat
         print(f"Streaming dataset already exists at {streaming_pdb_dataset_path}. Skipping regeneration as regenerate is False.")
         return
     else:
-        print("Loading streaming dataset from TAR files...")
+        print(f"Loading streaming dataset from TAR files {tar_folder}...")
         # Find every decompressed trajectory archive that should be converted into
         # a dataset shard.
         tar_files = sorted(Path(tar_folder).glob('*.tar'))
