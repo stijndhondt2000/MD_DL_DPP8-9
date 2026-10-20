@@ -1,3 +1,6 @@
+import os
+import tarfile
+
 import numpy as np
 from Bio import PDB
 from pathlib import Path
@@ -22,6 +25,7 @@ def extract_coordinates(pdb_file, pdb_id):
 
     return np.array(coords, dtype=np.float32)
 
+
 def construct_pdb_record(pdb_id, dpp_class, ligand_name, binding_type, coords, replica_id):
     """Construct a Hugging Face-style dictionary for a single PDB record."""
     return {
@@ -33,36 +37,50 @@ def construct_pdb_record(pdb_id, dpp_class, ligand_name, binding_type, coords, r
         'num_atoms': len(coords),
         'replica_id': replica_id
     }
-def parse_pdb_streaming(tar, frames, dpp_class, ligand_name, binding_type, replica_id):
+
+
+def parse_pdb_streaming(tar=None, frames=None, dpp_class=None, ligand_name=None, binding_type=None, replica_id=None, tar_path=None):
     """Yield one dataset record per PDB file stored inside a TAR archive.
 
-    The generator does not unpack the archive to disk. Instead, it walks over the
-    TAR members, opens each ``.pdb`` file in memory, extracts the atomic coordinates,
-    and emits a Hugging Face-style dictionary that can be consumed by
-    ``Dataset.from_generator``.
-
-    Each yielded row keeps the experiment metadata together with the parsed
-    coordinates so the downstream dataset still knows which trajectory and
-    ligand/binding setup the frame came from.
+    The generator accepts either an already-open ``tarfile.TarFile`` object or a
+    path to a TAR archive. Passing the archive path is important when running
+    ``Dataset.from_generator`` with multiprocessing, because the live tar handle
+    is not reliably serializable across worker processes.
     """
-    for frame in frames:
-        if frame.name.endswith('.pdb'):
-            # Open the PDB entry directly from the archive instead of extracting it
-            # to a temporary file. This keeps preprocessing faster and avoids
-            # creating a large intermediate directory of frame files.
-            f = tar.extractfile(frame)
-            pdb_id = Path(frame.name).stem
+    close_tar = False
+    if tar is None:
+        if tar_path is None:
+            raise ValueError("Either tar or tar_path must be provided.")
+        tar = tarfile.open(tar_path, mode='r:*')
+        close_tar = True
+    elif isinstance(tar, (str, os.PathLike)):
+        tar_path = str(tar)
+        tar = tarfile.open(tar_path, mode='r:*')
+        close_tar = True
+
+    try:
+        tar_members = frames if frames is not None else tar.getmembers()
+        for frame in tar_members:
+            member_name = getattr(frame, 'name', '')
+            if not member_name.endswith('.pdb'):
+                continue
+
+            extracted = tar.extractfile(frame)
+            if extracted is None:
+                continue
 
             try:
-                # Parse the coordinate block for this structure. The helper returns
-                # the coordinate representation used throughout the training pipeline.
-                coords = extract_coordinates(f, pdb_id)
-                yield construct_pdb_record(pdb_id, dpp_class, ligand_name, binding_type, coords, replica_id)
-            except Exception as e:
-                # A single corrupt frame should not stop the entire archive from
-                # being processed, so we log the failure and continue streaming.
-                print(f"Error parsing {pdb_id}: {e}")
+                with extracted:
+                    pdb_id = Path(member_name).stem
+                    coords = extract_coordinates(extracted, pdb_id)
+                    yield construct_pdb_record(pdb_id, dpp_class, ligand_name, binding_type, coords, replica_id)
+            except Exception as exc:
+                print(f"Error parsing {pdb_id}: {exc}")
                 continue
+    finally:
+        if close_tar:
+            tar.close()
+
 
 def extract_pdb_files_from_directory(pdb_dir: str, dpp_class: str|None = None, ligand_name: str|None = None, binding_type: str|None = None, replica_id: int|None = None) -> list:
     """
@@ -81,6 +99,7 @@ def extract_pdb_files_from_directory(pdb_dir: str, dpp_class: str|None = None, l
         sample = extract_pdb_file(str(pdb_file), ligand_name=ligand_name, binding_type=binding_type, dpp_class=dpp_class, replica_id=replica_id)
         samples.append(sample)
     return samples
+
 
 def extract_pdb_file(pdb_file: str, ligand_name: str|None = None, binding_type: str|None = None, dpp_class: str|None = None, replica_id: int|None = None) -> dict:
     """

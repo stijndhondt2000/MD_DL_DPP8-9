@@ -12,6 +12,7 @@ from src.training.utils import train_val_test_split
 from src.utils.molecular_parsing import parse_filename
 from src.data.data_preprocessing.utils import extract_coordinates, parse_pdb_streaming
 from src.infrastructure.dotenvManager import dotenvManager
+import shutil
 
 
 
@@ -41,7 +42,8 @@ def generate_dataset_from_tars(streaming_pdb_dataset_path, tar_folder, regenerat
         # sanity check to avoid reprocessing directories that already look complete.
         min_expected_size = 3.5 * 10**9
         counter = 0
-
+        # decompress each tar file and parse the PDB files inside it to create a dataset shard
+        
 
         for tar_file in tar_files:
             filename = tar_file.stem
@@ -72,7 +74,7 @@ def generate_dataset_from_tars(streaming_pdb_dataset_path, tar_folder, regenerat
                         continue
                 func = functools.partial(
                     parse_pdb_streaming,
-                    tar = tar,
+                    tar_path=str(tar_file),
                     dpp_class=dpp_class,
                     ligand_name=ligand_name,
                     binding_type=binding_type,
@@ -85,9 +87,6 @@ def generate_dataset_from_tars(streaming_pdb_dataset_path, tar_folder, regenerat
                 # as an independent shard on disk.
                 dataset = Dataset.from_generator(
                     func,
-                    gen_kwargs={
-                        'frames': frames,
-                    },
                     num_proc=num_proc,
                     split = NamedSplit(split_name)
                 )
@@ -113,19 +112,21 @@ def generate_full_dataset_from_tars(regenerate=False, num_proc=32, skip_existing
         raise FileNotFoundError(f"TAR folder {tar_folder} does not exist or is empty. Please ensure the TAR files are present.")
     # folder to store the intermediate dataset cache
     print("Starting data preprocessing...")
-    streaming_pdb_dataset_path = dotenv_manager.get_dataset_directory()
+    dataset_path = dotenv_manager.get_dataset_directory()
+    temp_dataset_path = os.path.join(dataset_path, "temp")
     # Ensure the intermediate dataset cache exists before writing any shards.
-    os.makedirs(streaming_pdb_dataset_path, exist_ok=True)
+    os.makedirs(temp_dataset_path, exist_ok=True)
+    os.makedirs(dataset_path, exist_ok=True)
      
 
     # Step 1: turn each TAR archive into a saved dataset shard on disk.
-    generate_dataset_from_tars(streaming_pdb_dataset_path, tar_folder, regenerate=regenerate, num_proc=num_proc, skip_existing=False)
+    generate_dataset_from_tars(temp_dataset_path, tar_folder, regenerate=regenerate, num_proc=num_proc, skip_existing=False)
 
     full_ds = []
     # Step 2: reload every shard and keep the partial datasets in memory long
     # enough to concatenate them into a single dataset object.
-    for last_child in os.listdir(streaming_pdb_dataset_path):
-        traj_path = os.path.join(streaming_pdb_dataset_path, last_child)
+    for last_child in os.listdir(temp_dataset_path):
+        traj_path = os.path.join(temp_dataset_path, last_child)
 
         print(f"Loading dataset for traj: {last_child}...")
         partial_ds = load_from_disk(traj_path)
@@ -152,20 +153,20 @@ def generate_full_dataset_from_tars(regenerate=False, num_proc=32, skip_existing
     print(f"\tFinal validation set size: {len(full_val_set)}")
     print(f"\tFinal test set size: {len(full_test_set)}")
 
-    # Save the final dataset hierarchy in the project output location.
-    dataset_dir = os.path.dirname('/project_antwerp/dataset/full_dataset/')
-    os.makedirs(dataset_dir, exist_ok=True)
     print("Saving final datasets to disk...")
-    final_full_set_path = os.path.join(dataset_dir, "full_dataset")
+    
 
     # Persist each split separately so training scripts can load only the subset
     # they need without reading the entire corpus every time.
     for split_name, dset in train_val_test_split(full_set, train_fraction=0.7, val_fraction=0.15, seed=42).items():
-        set_path = os.path.join(final_full_set_path, split_name)
+        set_path = os.path.join(dataset_path, split_name)
         os.makedirs(set_path, exist_ok=True)
         dset.save_to_disk(set_path, max_shard_size="4GB", num_proc=num_proc)
 
-
+    # remove the temporary dataset cache to free up disk space after the final splits are saved.
+    if os.path.exists(temp_dataset_path):
+        shutil.rmtree(temp_dataset_path)
+        print(f"Removed temporary dataset cache at {temp_dataset_path}.")
     print("Datasets saved.")
 
 
