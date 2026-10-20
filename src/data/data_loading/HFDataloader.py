@@ -45,7 +45,7 @@ def initialize_dataloaders(config: TrainingConfig, dotenv_manager: dotenvManager
     logging.info("\t...initializing_dataloader complete")
     logging.info("\tPre-encoding labels and packing coordinates into fixed-size tensors in dataset artifacts...")
     requested_workers = max(1, int(config.num_cpus))
-    safetensors_directory = dotenv_manager.get_safetensors_directory(fast_path=False)
+    safetensors_directory = dotenv_manager.get_safetensors_directory()
     
 
     logging.info(f"\tLoading cached safetensors from {safetensors_directory}...")
