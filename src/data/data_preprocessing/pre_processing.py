@@ -55,7 +55,6 @@ def generate_dataset_from_tars(streaming_pdb_dataset_path, tar_folder, regenerat
             with tarfile.open(tar_file, 'r') as tar:
                 # Read the archive member list once so the generator can iterate over
                 # it without repeatedly querying the tar file.
-                frames = tar.getmembers()
 
                 # The filename encodes the experiment metadata that should be copied
                 # into every row produced from this archive.
@@ -174,5 +173,9 @@ if __name__ == "__main__":
     # Run the full preprocessing pipeline when this module is executed directly.
     # ``regenerate`` forces shard recreation, while ``skip_existing`` can be used
     # to avoid repeating work on archives that were already processed.
+
+    # Generate the full dataset from TAR files
+    # 2 cpus do 1 targz file in ~30 minutes. ~130 targz files in total = ~65 hours. 
+    # To speed up the process, we can use 32 cpus to process multiple targz files in parallel. = ~4 hours.
     generate_full_dataset_from_tars(regenerate=False, num_proc=16, skip_existing=True)
 

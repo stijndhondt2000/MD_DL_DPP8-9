@@ -190,7 +190,7 @@ def training_loop(
                 if current_best_model_path and os.path.exists(current_best_model_path):
                     os.remove(current_best_model_path)
                     logging.info(f"\tRemoved old best model at {current_best_model_path}")
-                current_best_model_path = save_model(model, model_folder, f'current_best_model_epoch_{current_epoch}.pth')
+                current_best_model_path = save_model(model, model_folder, f'current_best_model_epoch_{current_epoch}')
                 logging.info(f"\tSaved best model at epoch {current_epoch} to {current_best_model_path}")
                 epochs_best_model = current_epoch
             else:

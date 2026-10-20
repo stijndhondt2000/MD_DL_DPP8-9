@@ -18,22 +18,22 @@ import matplotlib.pyplot as plt
 THRESHOLD = 0.5
 
 METHOD_ARGS = {
-    "integrated_gradients": {"steps": 50},
-    "occlusion": {
-        "patch_size": 1,
-        "perturbations_per_eval": 2048,
-        "shift_size": 1,
-    },
+    # "integrated_gradients": {"steps": 50},
+    # "occlusion": {
+    #     "patch_size": 1,
+    #     "perturbations_per_eval": 2048,
+    #     "shift_size": 1,
+    # },
     "saliency": {},
 }
 
 MODEL_CHECKPOINTS = {
-    "DCNN": Path(
-        "/project_antwerp/MD_DL_DPP8-9/"
-        "output/models/CustomDenseNet_Randomsplit_Dataset/"
-        "20260323-202241/"
-        "CustomDenseNet_Randomsplit_Dataset.pth"
-    ),
+    # "DCNN": Path(
+    #     "/project_antwerp/MD_DL_DPP8-9/"
+    #     "output/models/CustomDenseNet_Randomsplit_Dataset/"
+    #     "20260323-202241/"
+    #     "CustomDenseNet_Randomsplit_Dataset.pth"
+    # ),
     "SCNN": Path(
         "/project_antwerp/MD_DL_DPP8-9/"
         "output/models/SCNN/"
@@ -64,10 +64,12 @@ def worker(gpu_id, job_queue):
 
     # Each worker is permanently assigned to one GPU.
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
-    dcnn = _initilize_classification_model(MODEL_CHECKPOINTS["DCNN"], device=torch.device("cuda"))
-    scnn = _initilize_classification_model(MODEL_CHECKPOINTS["SCNN"], device=torch.device("cuda"))
-    dcnn_methods = solve_methods(CaptumInterpreter(dcnn), method_args=METHOD_ARGS)
-    scnn_methods = solve_methods(CaptumInterpreter(scnn), method_args=METHOD_ARGS)
+    if "DCNN" in MODEL_CHECKPOINTS:
+        dcnn = _initilize_classification_model(MODEL_CHECKPOINTS["DCNN"], device=torch.device("cuda"))
+        dcnn_methods = solve_methods(CaptumInterpreter(dcnn), method_args=METHOD_ARGS)
+    if "SCNN" in MODEL_CHECKPOINTS:
+        scnn = _initilize_classification_model(MODEL_CHECKPOINTS["SCNN"], device=torch.device("cuda"))
+        scnn_methods = solve_methods(CaptumInterpreter(scnn), method_args=METHOD_ARGS)
 
     # Import CUDA-dependent code only after CUDA_VISIBLE_DEVICES is set
     # if your imports initialize CUDA.
@@ -309,19 +311,13 @@ def execute_model_interpretation(output_dir: Path = None, input_dir: Path = None
 if __name__ == "__main__":
     # read OUTPUT_DIR from .env file 
     load_dotenv()
-    root_input_dir = os.path("/project_antwerp/dataset/decompressed_both_datasets/")
-    root_output_dir = os.getenv("OUTPUT_DIR", default="/project_antwerp/MD_DL_DPP8-9/output")
+    root_input_dir = os.path("/project_antwerp/dataset/decompressed_both_datasets_every1000/")
+    root_output_dir = os.getenv("OUTPUT_DIR", default="/project_antwerp/MD_DL_DPP8-9/output/")
     interpretability_output_dir = os.path.join(root_output_dir, "interpretability")
     all_frames_output_dir = os.path.join(interpretability_output_dir, "all_frames")
     aggregated_replicas_output_dir = os.path.join(interpretability_output_dir, "aggregated_replicas")
     os.makedirs(all_frames_output_dir, exist_ok=True)
     os.makedirs(aggregated_replicas_output_dir, exist_ok=True)
-# ROOT_DIRECTORY = Path(
-#     "/project_antwerp/dataset/decompressed_both_datasets/"
-# )
-# ROOT_OUTPUT_DIRECTORY = Path(
-#     "/project_antwerp/dataset/decompressed_both_datasets/output2/"
-# )
     execute_model_interpretation(
         input_dir=root_input_dir,
         output_dir=all_frames_output_dir,
