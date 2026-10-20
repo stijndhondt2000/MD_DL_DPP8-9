@@ -105,6 +105,10 @@ def generate_full_dataset_from_tars(regenerate=False, num_proc=32, skip_existing
     dotenv_manager = dotenvManager()
     # folder with tar files
     tar_folder = dotenv_manager.get_compressed_dataset_directory()
+    # ensure tar foler exists and is not empty
+    if not os.path.exists(tar_folder) or len(os.listdir(tar_folder)) == 0:
+        raise FileNotFoundError(f"TAR folder {tar_folder} does not exist or is empty. Please ensure the TAR files are present.")
+    # folder to store the intermediate dataset cache
     print("Starting data preprocessing...")
     streaming_pdb_dataset_path = dotenv_manager.get_dataset_directory()
     # Ensure the intermediate dataset cache exists before writing any shards.
