@@ -11,7 +11,7 @@ from pathlib import Path
 from src.training.utils import train_val_test_split
 from src.utils.molecular_parsing import parse_filename
 from src.data.data_preprocessing.utils import extract_coordinates, parse_pdb_streaming
-
+from src.infrastructure.dotenvManager import dotenvManager
 
 
 
@@ -99,13 +99,13 @@ def generate_full_dataset_from_tars(regenerate=False, num_proc=32, skip_existing
     them, concatenates them into one large dataset, shuffles the rows, and finally
     applies the project-specific train/val/test split.
     """
+    dotenv_manager = dotenvManager()
     # folder with tar files
-    tar_folder = "/project_antwerp/dataset/compressed_dataset/"
+    tar_folder = dotenv_manager.get_compressed_dataset_directory()
     print("Starting data preprocessing...")
-    streaming_pdb_dataset_path = f"/project_antwerp/dataset/temp/streaming_pdb_dataset/"
+    streaming_pdb_dataset_path = dotenv_manager.get_dataset_directory()
     # Ensure the intermediate dataset cache exists before writing any shards.
     os.makedirs(streaming_pdb_dataset_path, exist_ok=True)
-    num_proc = 16
      
 
     # Step 1: turn each TAR archive into a saved dataset shard on disk.

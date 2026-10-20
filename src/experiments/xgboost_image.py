@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 from src.models.XGBoostImageClassifier import XGBoostImageClassifier
 from src.data.data_loading.HFDataloader import initialize_dataloaders
-from src.infrastructure.cacheManager import cacheManager
+from src.infrastructure.dotenvManager import cacheManager
 from src.config.training_config import TrainingConfig
 
 

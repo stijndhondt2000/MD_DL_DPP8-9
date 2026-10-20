@@ -1,8 +1,7 @@
 from dotenv import load_dotenv
 from concurrent.futures import ProcessPoolExecutor, FIRST_COMPLETED, wait
 
-from src.infrastructure.cacheManager import cacheManager
-load_dotenv()
+from src.infrastructure.dotenvManager import dotenvManager
 from src.training.batch_preprocessing import TARGET_PIXELS
 
 from src.training.LabelEncoder import LabelEncoder
@@ -10,7 +9,6 @@ from src.data.data_loading.SafetensorsDataset import ShardedSafetensorsDataset
 import datasets
 # The label encoder is shared by the batch packing step so that string labels are
 # converted to stable numeric IDs before being written to disk.
-label_encoder = LabelEncoder()
 import logging
 logging.basicConfig(level=logging.DEBUG)
 import os 
@@ -23,6 +21,7 @@ import time
 import signal
 import threading
 import sys
+label_encoder = LabelEncoder()
 
 # A global event is used so the SIGUSR1 handler can request a graceful shutdown
 # from anywhere in the preprocessing pipeline without raising immediately in the
@@ -459,11 +458,12 @@ def _is_map_worker_crash_error(exc: BaseException) -> bool:
 
     return False
 
-def prepare_safetensors(splits=["train", "validation", "test", "unique_test_runs"], initial_batch_size=1024, skip_existing_cache=True,dataset_path="/project_antwerp/dataset/temp/streaming_pdb_dataset/", redo_cache=False):
+def prepare_safetensors(splits=["train", "validation", "test", "unique_test_runs"], \
+                        initial_batch_size=1024, skip_existing_cache=True,dataset_path="/project_antwerp/dataset/temp/streaming_pdb_dataset/",\
+                        redo_cache=False, safetensors_path=None):
     # This is the top-level orchestration routine: download the requested splits,
     # normalize them into fixed-size tensors, and persist the result as sharded
     # safetensors on disk.
-    cache_prefix = os.environ.get("HF_DOWNLOADED_DATASET_DIR", "./hf_cache")
     dataset_dict = _download_dataset(dataset_location=dataset_path, splits=splits)
     logging.debug(f"Downloaded dataset with splits: {list(dataset_dict.keys())}. Sample keys: {dataset_dict[splits[0]].column_names}")
     
@@ -472,37 +472,36 @@ def prepare_safetensors(splits=["train", "validation", "test", "unique_test_runs
     batch_size = initial_batch_size  # Start with a larger batch size for the map operation.
     # Use the configured CPU count for parallel packing/saving work.
     num_workers = calculate_num_cpus() 
-    cache_manager = cacheManager.cacheManager()
+    dotenv_manager = dotenvManager()
     # Build a stable cache namespace so repeated runs can reuse or invalidate the
     # same disk locations in a predictable way.
-    dir_name = cacheManager.construct_cache_identifier(used_percentage="100%", prefix="mapped")
-    safetensors_cache_filepath = cache_manager.get_safetensor_cache_path(fast_path=False)
-    arrow_cache_filepath = os.path.join(cache_prefix, dir_name, "arrow_cache")
+    safetensors_filepath = dotenv_manager.get_safetensors_directory()
+    arrow_filepath = dotenv_manager.get_dataset_directory()
     # Rename columns to the schema expected by the packing and safetensors-saving
     # steps. ``coordinates`` becomes ``data`` and ``binding_type`` becomes labels.
     dataset_dict = dataset_dict.rename_columns({'coordinates': 'data', 'binding_type': 'labels'})
-    if redo_cache and os.path.exists(safetensors_cache_filepath):
+    if redo_cache and os.path.exists(safetensors_filepath):
         # A forced rebuild starts by deleting the old cache directory entirely.
-        logging.warning(f"\t\tRedo cache enabled. Will overwrite existing safetensors cache for {safetensors_cache_filepath}.")
-        shutil.rmtree(safetensors_cache_filepath)
-    os.makedirs(safetensors_cache_filepath, exist_ok=True)
+        logging.warning(f"\t\tRedo cache enabled. Will overwrite existing safetensors cache for {safetensors_filepath}.")
+        shutil.rmtree(safetensors_filepath)
+    os.makedirs(safetensors_filepath, exist_ok=True)
     
     for split in splits:
         _raise_if_stop_requested(f"split {split} start")
-        cache_metadata_path = os.path.join(safetensors_cache_filepath, f"{split}_metadata.pt")
+        cache_metadata_path = os.path.join(safetensors_filepath, f"{split}_metadata.pt")
         logging.debug(f"Checking for existing cache metadata at {cache_metadata_path} for {split} split...")
         if skip_existing_cache and os.path.exists(cache_metadata_path) and not redo_cache:
             # Metadata presence is used as the completion signal for a cached split.
-            logging.info(f"\t\tFound existing cached safetensors for {split} split in {safetensors_cache_filepath}.")
+            logging.info(f"\t\tFound existing cached safetensors for {split} split in {safetensors_filepath}.")
             continue  # Skip if already cached (metadata presence indicates completed cache)
 
-        arrow_cache_path = os.path.join(arrow_cache_filepath, f"{split}_data.arrow")
+        arrow_cache_path = os.path.join(arrow_filepath, f"{split}_data.arrow")
         # Map first, save second: this keeps the intermediate Arrow cache separate
         # from the final safetensors shards and makes retry logic easier.
         logging.info(f"\t\tProcessing {split} split with batch size {batch_size} and {num_workers} workers to cache {arrow_cache_path}...")
-        if redo_cache and os.path.exists(arrow_cache_filepath):
-            shutil.rmtree(arrow_cache_filepath)
-            logging.warning(f"\t\tRedo cache enabled. Removed existing arrow cache at {arrow_cache_filepath} for {split} split.")
+        if redo_cache and os.path.exists(arrow_filepath):
+            shutil.rmtree(arrow_filepath)
+            logging.warning(f"\t\tRedo cache enabled. Removed existing arrow cache at {arrow_filepath} for {split} split.")
 
         while True:
             _raise_if_stop_requested(f"split {split} map")
@@ -539,7 +538,7 @@ def prepare_safetensors(splits=["train", "validation", "test", "unique_test_runs
                 _save_split_as_safetensors_memory_efficient(
                     dataset_dict, 
                     split, 
-                    cache_path=safetensors_cache_filepath,
+                    cache_path=safetensors_filepath,
                     shard_size=5000,  # Adjust based on your memory
                     total_nr_workers=num_workers,
                 )
@@ -558,12 +557,12 @@ def prepare_safetensors(splits=["train", "validation", "test", "unique_test_runs
                     continue
                 else:
                     raise
-        logging.info(f"\t\tFinished processing {split} split. Cached safetensors available at {safetensors_cache_filepath}.")
+        logging.info(f"\t\tFinished processing {split} split. Cached safetensors available at {safetensors_filepath}.")
     logging.info("All splits processed and cached as safetensors.")
 
 
 if __name__ == "__main__":
-    dataset_path = "/project_antwerp/dataset/temp/streaming_pdb_dataset/"
+    dataset_path =  dotenvManager().get_dataset_directory()
     try:
         # Allow the module to be executed directly for local preprocessing runs
         # without needing a separate wrapper script.

@@ -9,7 +9,7 @@ import shutil
 import os
 import torch
 torch.multiprocessing.set_sharing_strategy('file_system')
-from src.infrastructure.cacheManager import cacheManager
+from src.infrastructure.dotenvManager import dotenvManager
 from src.config.training_config import TrainingConfig
 from src.infrastructure.logger import get_logger
 logging = get_logger()
@@ -24,7 +24,7 @@ def _effective_worker_count(requested_cpus: int) -> int:
 # Define a type for the dataloader dict
 DataLoaderDict = dict[str, torch.utils.data.DataLoader]
 
-def initialize_dataloaders(config: TrainingConfig, cache_manager: cacheManager= None, splits=None) -> DataLoaderDict:
+def initialize_dataloaders(config: TrainingConfig, dotenv_manager: dotenvManager= None, splits=None) -> DataLoaderDict:
     """Create one PyTorch dataloader per requested dataset split.
 
     The cache must contain sharded safetensors with ``data``, ``labels``, and
@@ -39,16 +39,16 @@ def initialize_dataloaders(config: TrainingConfig, cache_manager: cacheManager= 
     """
     if splits is None:
         splits = ['train', 'validation', 'test']
-    if cache_manager is None:
-        cache_manager = cacheManager()
+    if dotenv_manager is None:
+        dotenv_manager = dotenvManager()
 
     logging.info("\t...initializing_dataloader complete")
     logging.info("\tPre-encoding labels and packing coordinates into fixed-size tensors in dataset artifacts...")
     requested_workers = max(1, int(config.num_cpus))
-    slow_safetensors_cache_filepath = cache_manager.get_safetensor_cache_path(fast_path=False)
-    safetensors_cache_folder = slow_safetensors_cache_filepath
+    safetensors_directory = dotenv_manager.get_safetensors_directory(fast_path=False)
+    
 
-    logging.info(f"\tLoading cached safetensors from {safetensors_cache_folder}...")
+    logging.info(f"\tLoading cached safetensors from {safetensors_directory}...")
     requested_workers = max(1, int(config.num_cpus))
     dataloader_workers = _effective_worker_count(requested_workers)
     logging.info(
@@ -64,13 +64,12 @@ def initialize_dataloaders(config: TrainingConfig, cache_manager: cacheManager= 
     }
     dataloader_dict = {}
     for split in splits:
-        logging.debug(f"\t\tLoading cached safetensors for {split} split from {safetensors_cache_folder}...")
+        logging.debug(f"\t\tLoading cached safetensors for {split} split from {safetensors_directory}...")
         logging.debug(f"Creating SafetensorsDataset for {split} split with batch size {config.batch_size} and num_workers {dataloader_workers}, fraction {config.dataset_size}...")
-        ds = ShardedSafetensorsDataset(safetensors_cache_folder, split, fraction=config.dataset_size)
+        ds = ShardedSafetensorsDataset(safetensors_directory, split, fraction=config.dataset_size)
         logging.info(f"\t\tCreating dataloader for {split} split with batch size {config.batch_size} and num_workers {dataloader_workers}...")
         dataloader = torch.utils.data.DataLoader(dataset=ds, **dataloader_args)
         dataloader_dict[split] = dataloader
-    cache_manager.copy_to_permanent_cache() 
 
     return dataloader_dict
 
