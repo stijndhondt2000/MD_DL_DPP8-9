@@ -30,10 +30,13 @@ def generate_dataset_from_tars(streaming_pdb_dataset_path, tar_folder, regenerat
         print(f"Streaming dataset already exists at {streaming_pdb_dataset_path}. Skipping regeneration as regenerate is False.")
         return
     else:
-        print(f"Loading streaming dataset from TAR files {tar_folder}...")
+        print(f"Creating dataset {streaming_pdb_dataset_path} from TAR files {tar_folder}")
         # Find every decompressed trajectory archive that should be converted into
         # a dataset shard.
-        tar_files = sorted(Path(tar_folder).glob('*.tar'))
+        # use tar.gz files in the tar_folder
+        tar_files = sorted(Path(tar_folder).glob('*.tar.gz'))
+        if not tar_files:
+            raise FileNotFoundError(f"No TAR.gz files found in {tar_folder}. Please ensure the TAR files are present.")
         # Shards are expected to be large. This threshold is used as a coarse
         # sanity check to avoid reprocessing directories that already look complete.
         min_expected_size = 3.5 * 10**9
