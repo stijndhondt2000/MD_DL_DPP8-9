@@ -1,5 +1,7 @@
 import functools
 
+from concurrent.futures import ProcessPoolExecutor, as_completed
+
 from datasets import Dataset, load_dataset, NamedSplit, concatenate_datasets, load_from_disk
 from datasets.data_files import DownloadConfig
 import tarfile
@@ -15,8 +17,40 @@ from src.infrastructure.dotenvManager import dotenvManager
 import shutil
 
 
+def _process_tar_file_to_dataset(tar_file: Path, streaming_pdb_dataset_path: str, skip_existing: bool = True, min_expected_size: int = 3.5 * 10**9):
+    """Build one dataset shard for a single TAR archive."""
+    filename = tar_file.stem
+    print(f"Processing file {filename}...")
 
+    dpp_class, ligand_name, binding_type, replica_id = parse_filename(filename)
+    split_name = f"{dpp_class}_{binding_type}_{ligand_name}_{replica_id}"
+    res_dir = os.path.join(streaming_pdb_dataset_path, split_name)
 
+    if os.path.exists(res_dir):
+        existing_size = 0
+        for element in os.scandir(res_dir):
+            if element.is_file():
+                existing_size += os.path.getsize(element)
+        if skip_existing and existing_size >= min_expected_size:
+            print(f"✓ Skipping {filename} as it already exists and is of expected size.")
+            return {"status": "skipped", "path": res_dir, "filename": filename}
+
+    dataset = Dataset.from_generator(
+        parse_pdb_streaming,
+        gen_kwargs={
+            "tar_path": str(tar_file),
+            "dpp_class": dpp_class,
+            "ligand_name": ligand_name,
+            "binding_type": binding_type,
+            "replica_id": replica_id,
+        },
+        split=NamedSplit(split_name),
+    )
+
+    os.makedirs(res_dir, exist_ok=True)
+    dataset.save_to_disk(res_dir, max_shard_size="4GB")
+    print(f"✓ Processed {filename} and saved to {res_dir}.")
+    return {"status": "processed", "path": res_dir, "filename": filename}
 
 
 def generate_dataset_from_tars(streaming_pdb_dataset_path, tar_folder, regenerate=False, num_proc=32, skip_existing=True):
@@ -30,71 +64,45 @@ def generate_dataset_from_tars(streaming_pdb_dataset_path, tar_folder, regenerat
     if os.path.exists(streaming_pdb_dataset_path) and not regenerate:
         print(f"Streaming dataset already exists at {streaming_pdb_dataset_path}. Skipping regeneration as regenerate is False.")
         return
-    else:
-        print(f"Creating dataset {streaming_pdb_dataset_path} from TAR files {tar_folder}")
-        # Find every decompressed trajectory archive that should be converted into
-        # a dataset shard.
-        # use tar.gz files in the tar_folder
-        tar_files = sorted(Path(tar_folder).glob('*.tar.gz'))
-        if not tar_files:
-            raise FileNotFoundError(f"No TAR.gz files found in {tar_folder}. Please ensure the TAR files are present.")
-        # Shards are expected to be large. This threshold is used as a coarse
-        # sanity check to avoid reprocessing directories that already look complete.
-        min_expected_size = 3.5 * 10**9
-        counter = 0
-        # decompress each tar file and parse the PDB files inside it to create a dataset shard
-        
 
+    print(f"Creating dataset {streaming_pdb_dataset_path} from TAR files {tar_folder}")
+    tar_files = sorted(Path(tar_folder).glob('*.tar.gz'))
+    if not tar_files:
+        raise FileNotFoundError(f"No TAR.gz files found in {tar_folder}. Please ensure the TAR files are present.")
+
+    min_expected_size = 3.5 * 10**9
+    workers = max(1, min(num_proc/2, len(tar_files)))
+
+    if workers == 1:
         for tar_file in tar_files:
-            filename = tar_file.stem
+            _process_tar_file_to_dataset(
+                tar_file=tar_file,
+                streaming_pdb_dataset_path=streaming_pdb_dataset_path,
+                skip_existing=skip_existing,
+                min_expected_size=min_expected_size,
+            )
+    else:
+        with ProcessPoolExecutor(max_workers=workers) as executor:
+            futures = {
+                executor.submit(
+                    _process_tar_file_to_dataset,
+                    tar_file,
+                    streaming_pdb_dataset_path,
+                    skip_existing,
+                    min_expected_size,
+                ): tar_file
+                for tar_file in tar_files
+            }
+            for future in as_completed(futures):
+                tar_file = futures[future]
+                try:
+                    future.result()
+                except Exception as exc:
+                    print(f"Failed to process {tar_file}: {exc}")
+                    raise
 
-            # Track progress at the archive level because each TAR may contain a
-            # large number of PDB frames and can take a noticeable amount of time.
-            print(f"Processing file {counter}:\t\t{filename}...")
-            counter += 1
-            with tarfile.open(tar_file, 'r') as tar:
-                # Read the archive member list once so the generator can iterate over
-                # it without repeatedly querying the tar file.
+    print("✓ Streaming dataset loaded and saved to disk.")
 
-                # The filename encodes the experiment metadata that should be copied
-                # into every row produced from this archive.
-                dpp_class, ligand_name, binding_type, replica_id = parse_filename(filename)
-                split_name = f"{dpp_class}_{binding_type}_{ligand_name}_{replica_id}"
-                res_dir = os.path.join(streaming_pdb_dataset_path, split_name)
-                # If a shard already exists and looks large enough, assume it was
-                # fully written in a previous run and skip recomputation.
-                if os.path.exists(res_dir):
-                    existing_size = 0
-                    for element in os.scandir(res_dir):
-                        if element.is_file():
-                            existing_size += os.path.getsize(element)
-                    if skip_existing and existing_size >= min_expected_size:
-                        print(f"✓ Skipping {filename} as it already exists and is of expected size.")
-                        continue
-                func = functools.partial(
-                    parse_pdb_streaming,
-                    tar_path=str(tar_file),
-                    dpp_class=dpp_class,
-                    ligand_name=ligand_name,
-                    binding_type=binding_type,
-                    replica_id=replica_id
-                )
-
-                # ``Dataset.from_generator`` consumes the streaming generator and
-                # builds an Arrow-backed dataset from the yielded dictionaries.
-                # ``split`` is set to a synthetic name so each archive can be saved
-                # as an independent shard on disk.
-                dataset = Dataset.from_generator(
-                    func,
-                    num_proc=num_proc,
-                    split = NamedSplit(split_name)
-                )
-                os.makedirs(res_dir, exist_ok=True)
-                # Persist the shard so later runs can reload it directly without
-                # re-reading the source TAR file.
-                dataset.save_to_disk(res_dir, max_shard_size="4GB")
-                print(f"✓ Processed {filename} and saved to {res_dir}.")
-        print("✓ Streaming dataset loaded and saved to disk.")
 
 def generate_full_dataset_from_tars(regenerate=False, num_proc=32, skip_existing=True):
     """Build the final train/validation/test dataset from all TAR shards.
@@ -116,7 +124,6 @@ def generate_full_dataset_from_tars(regenerate=False, num_proc=32, skip_existing
     # Ensure the intermediate dataset cache exists before writing any shards.
     os.makedirs(temp_dataset_path, exist_ok=True)
     os.makedirs(dataset_path, exist_ok=True)
-     
 
     # Step 1: turn each TAR archive into a saved dataset shard on disk.
     generate_dataset_from_tars(temp_dataset_path, tar_folder, regenerate=regenerate, num_proc=num_proc, skip_existing=False)
@@ -139,7 +146,7 @@ def generate_full_dataset_from_tars(regenerate=False, num_proc=32, skip_existing
     # Step 3: shuffle once with a fixed seed so the downstream split is
     # deterministic and not correlated with the ordering of the source TARs.
     full_set = full_ds.shuffle(seed=42)
-    
+
     # Create the project splits using the shared helper so the split ratios stay
     # aligned with the rest of the training codebase.
     train_val_test = train_val_test_split(full_set, train_fraction=0.7, val_fraction=0.15, seed=42)
@@ -153,7 +160,6 @@ def generate_full_dataset_from_tars(regenerate=False, num_proc=32, skip_existing
     print(f"\tFinal test set size: {len(full_test_set)}")
 
     print("Saving final datasets to disk...")
-    
 
     # Persist each split separately so training scripts can load only the subset
     # they need without reading the entire corpus every time.
@@ -175,7 +181,7 @@ if __name__ == "__main__":
     # to avoid repeating work on archives that were already processed.
 
     # Generate the full dataset from TAR files
-    # 2 cpus do 1 targz file in ~30 minutes. ~130 targz files in total = ~65 hours. 
+    # 2 cpus do 1 targz file in ~30 minutes. ~130 targz files in total = ~65 hours.
     # To speed up the process, we can use 32 cpus to process multiple targz files in parallel. = ~4 hours.
     generate_full_dataset_from_tars(regenerate=False, num_proc=16, skip_existing=True)
 
