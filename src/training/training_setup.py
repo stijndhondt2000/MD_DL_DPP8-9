@@ -7,7 +7,7 @@ from src.data.data_loading.HFDataloader import initialize_dataloaders
 from src.training.model_testing import model_testing
 from src.training.utils import get_device
 from src.training.training_loop import training_loop
-from src.infrastructure.dotenvManager import cacheManager
+from src.infrastructure.dotenvManager import dotenvManager
 from src.config.training_config import TrainingConfig, TestConfig
 from src.training.training_loop import training_loop
 import torch.nn as nn
@@ -97,7 +97,7 @@ def train_model(config: TrainingConfig, model_name: str, streaming: bool = False
     if config.max_train_steps is not None:
         logger.info(f"Max Train Steps: {config.max_train_steps}")
     # Initialize the cache manager
-    cache_manager = cacheManager(os.getenv("HF_CACHE_DIR"), os.getenv("FAST_CACHE_DIR"))
+    dotenv_manager = dotenvManager()
     # Determine the maximum number of retries for OOM errors
     max_retries = max(0, int(config.oom_max_retries)) if config.oom_retry_enabled else 0
     attempt = 0
@@ -112,7 +112,7 @@ def train_model(config: TrainingConfig, model_name: str, streaming: bool = False
 
                 # Initialize model and data for this attempt (batch size may change after OOM).
                 model = config.model_class(**config.model_args)
-                dataloaders = initialize_dataloaders(config, cache_manager, streaming=streaming)
+                dataloaders = initialize_dataloaders(config, dotenv_manager=dotenv_manager, streaming=streaming)
 
                 # Setup training
                 device = get_device()
@@ -242,9 +242,6 @@ def train_model(config: TrainingConfig, model_name: str, streaming: bool = False
         # If training fails after all retries, log the failure and raise the final exception to propagate it up the call stack.
         logger.info(f"Training failed after {attempt} attempt(s) with batch size {config.batch_size}.")
         raise final_exc
-    finally:
-        # Perform final cleanup of the cache manager to release any resources it may be holding.
-        cache_manager.cleanup()
     # Return the training result dictionary containing relevant metrics and configuration for further analysis or reporting.
     return training_result
 
