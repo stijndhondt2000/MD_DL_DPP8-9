@@ -108,7 +108,6 @@ def training_loop(
             prepared_labels,
             optimizer,
             criterion,
-            device,
         )
         prepared_inputs = None
         prepared_labels = None
