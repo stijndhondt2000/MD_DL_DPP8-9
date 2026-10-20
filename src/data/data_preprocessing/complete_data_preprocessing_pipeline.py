@@ -18,6 +18,6 @@ if __name__ == "__main__":
     safetensors_path = dotenv_manager.get_safetensors_directory()
 
     # Step 1: Generate the full dataset from TAR files
-    generate_full_dataset_from_tars(regenerate=False, num_proc=32, skip_existing=True)
+    generate_full_dataset_from_tars(regenerate=True, num_proc=32, skip_existing=True)
     # Step 2: Prepare the dataset for model training by converting it into safetensors format
     prepare_safetensors(dataset_path=dataset_path, safetensors_path=safetensors_path, splits=['train', 'validation', 'test'], skip_existing_cache=True, redo_cache=False)

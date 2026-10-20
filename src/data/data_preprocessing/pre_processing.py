@@ -26,7 +26,10 @@ def generate_dataset_from_tars(streaming_pdb_dataset_path, tar_folder, regenerat
     the full corpus can later be reloaded and concatenated without reparsing the
     source TAR archives.
     """
-    if not os.path.exists(streaming_pdb_dataset_path) or regenerate:
+    if os.path.exists(streaming_pdb_dataset_path) and not regenerate:
+        print(f"Streaming dataset already exists at {streaming_pdb_dataset_path}. Skipping regeneration as regenerate is False.")
+        return
+    else:
         print("Loading streaming dataset from TAR files...")
         # Find every decompressed trajectory archive that should be converted into
         # a dataset shard.
@@ -90,7 +93,7 @@ def generate_dataset_from_tars(streaming_pdb_dataset_path, tar_folder, regenerat
                 # re-reading the source TAR file.
                 dataset.save_to_disk(res_dir, max_shard_size="4GB")
                 print(f"✓ Processed {filename} and saved to {res_dir}.")
-    print("✓ Streaming dataset loaded and saved to disk.")
+        print("✓ Streaming dataset loaded and saved to disk.")
 
 def generate_full_dataset_from_tars(regenerate=False, num_proc=32, skip_existing=True):
     """Build the final train/validation/test dataset from all TAR shards.
