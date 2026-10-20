@@ -71,7 +71,7 @@ def generate_dataset_from_tars(streaming_pdb_dataset_path, tar_folder, regenerat
         raise FileNotFoundError(f"No TAR.gz files found in {tar_folder}. Please ensure the TAR files are present.")
 
     min_expected_size = 3.5 * 10**9
-    workers = max(1, min(num_proc/2, len(tar_files)))
+    workers = max(1, min(num_proc//2, len(tar_files)))
 
     if workers == 1:
         for tar_file in tar_files:
