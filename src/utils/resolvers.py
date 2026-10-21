@@ -50,35 +50,12 @@ def _extract_class_name(class_value) -> str | None:
 
 
 def _load_config_from_artifacts(config_path: str | None, checkpoint_path: str) -> TrainingConfig | None:
-	candidate_paths = []
-	if config_path:
-		candidate_paths.append(config_path)
-
 	checkpoint_dir = os.path.dirname(checkpoint_path)
-	candidate_paths.append(os.path.join(checkpoint_dir, "training_config.pt"))
-	candidate_paths.append(os.path.join(checkpoint_dir, "training_config.json"))
+	training_config_path = checkpoint_dir + "/training_config.json"
 
-	for candidate in candidate_paths:
-		if not candidate or not os.path.exists(candidate):
-			continue
-
-		if candidate.endswith(".json"):
-			return TrainingConfig.load(candidate)
-
-		with open(candidate, "r", encoding="utf-8") as handle:
-			payload = json.load(handle)
-
-		payload["model_class"] = _extract_class_name(payload.get("model_class"))
-
-		model_args = payload.get("model_args")
-		if isinstance(model_args, str):
-			try:
-				payload["model_args"] = ast.literal_eval(model_args)
-			except (SyntaxError, ValueError):
-				payload["model_args"] = {}
-
-		return TrainingConfig(**payload)
-
+	if os.path.exists(training_config_path):
+		return TrainingConfig.load(training_config_path)
+	
 	return None
 
 
