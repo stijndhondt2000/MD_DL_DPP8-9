@@ -110,56 +110,36 @@ class TrainingConfig:
 
     @classmethod
     def load(cls, path):
-        try:
-            data = torch.load(path, map_location="cpu", weights_only=False)
-            data = cls.verify_structure(path, data)
+        with open(json_path, "r") as f:
+            data = json.load(f)
 
-        except Exception as e:
-            try:
-                print(f"Error loading training config from {path}: {e}. Attempting to migrate from legacy format.")
-                data = cls.migrate_save(path)
-            except Exception as e2:
-                print(f"Error migrating training config from {path}: {e2}. Unable to load training configuration.")
-                raise e2
-        return cls(**data)
-        
-    @classmethod
-    def migrate_save(cls, path):
-        legacy_modules = {
-            "src.Models.DCNN": "src.models.DCNN",
-            "src.Models.SCNN": "src.models.SCNN",
-        }
-        for old_name, new_name in legacy_modules.items():
-            try:
-                sys.modules[old_name] = importlib.import_module(new_name)
-            except ModuleNotFoundError:
-                pass
+        # Remove obsolete transforms.
+        data.pop("training_transform", None)
+        data.pop("validation_transform", None)
 
-        
-        if "src.Transform" not in sys.modules:
-            dummy_module = types.ModuleType("src.Transform")
+        # Convert strings such as "<class 'src.Models.SCNN.SCNN'>"
+        # into importable Python classes.
+        def resolve_class(value):
+            if not isinstance(value, str) or not value.startswith("<class '"):
+                return value
 
-            # Dummy functions to satisfy old pickle references.
-            def apply_image_transform(*args, **kwargs):
-                raise RuntimeError("Legacy transform is no longer supported")
+            module_and_class = value[len("<class '"):-2]
+            module_name, class_name = module_and_class.rsplit(".", 1)
 
-            def apply_image_transform_noscramble(*args, **kwargs):
-                raise RuntimeError("Legacy transform is no longer supported")
-
-            dummy_module.apply_image_transform = apply_image_transform
-            dummy_module.apply_image_transform_noscramble = (
-                apply_image_transform_noscramble
+            # Migrate the old package name.
+            module_name = module_name.replace(
+                "src.Models", "src.models"
             )
 
-            sys.modules["src.Transform"] = dummy_module
+            module = importlib.import_module(module_name)
+            return getattr(module, class_name)
 
-        
-        data = torch.load(
-            path,
-            map_location="cpu",
-            weights_only=False,
-        )
-        return data
+        for key in ("model_class", "criterion", "optimizer", "scheduler"):
+            if key in data:
+                data[key] = resolve_class(data[key])
+
+        return cls(**data)
+
 
 
 
