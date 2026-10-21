@@ -127,7 +127,7 @@ def generate_full_dataset_from_tars(regenerate=False, num_proc=32, skip_existing
 
     # Step 1: turn each TAR archive into a saved dataset shard on disk.
     generate_dataset_from_tars(temp_dataset_path, tar_folder, regenerate=regenerate, num_proc=num_proc, skip_existing=False)
-
+    
     full_ds = []
     # Step 2: reload every shard and keep the partial datasets in memory long
     # enough to concatenate them into a single dataset object.

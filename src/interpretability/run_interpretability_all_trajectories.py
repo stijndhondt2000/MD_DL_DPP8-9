@@ -314,19 +314,19 @@ if __name__ == "__main__":
     load_dotenv()
     root_input_dir = Path("/project_antwerp/dataset/decompressed_both_datasets_every1000/")
     root_output_dir = os.getenv("OUTPUT_DIR", default="/project_antwerp/MD_DL_DPP8-9/output/")
-    interpretability_output_dir = os.path.join(root_output_dir, "interpretability")
-    all_frames_output_dir = os.path.join(interpretability_output_dir, "all_frames")
-    aggregated_replicas_output_dir = os.path.join(interpretability_output_dir, "aggregated_replicas")
+    interpretability_output_dir = root_output_dir / "interpretability"
+    all_frames_output_dir = interpretability_output_dir / "all_frames"
+    aggregated_replicas_output_dir = interpretability_output_dir / "aggregated_replicas"
     os.makedirs(all_frames_output_dir, exist_ok=True)
     os.makedirs(aggregated_replicas_output_dir, exist_ok=True)
     execute_model_interpretation(
         input_dir=root_input_dir,
-        output_dir=all_frames_output_dir,
+        output_dir=all_frames_output_dir
 
     )
     count_significant_residues(
         input_folder=all_frames_output_dir,
         output_folder_root=aggregated_replicas_output_dir,
         base_pdb_file_folder=root_input_dir,
-        methods=list(METHOD_ARGS.keys()),
+        methods=list(METHOD_ARGS.keys())
     )
