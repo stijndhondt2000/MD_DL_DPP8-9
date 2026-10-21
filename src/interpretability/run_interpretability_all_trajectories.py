@@ -83,8 +83,6 @@ def worker(gpu_id, job_queue):
     model=None
     methods=None
     while True:
-        print(f"Press Enter to start job", flush=True)
-        input 
         job = job_queue.get()
 
         if job is None:
