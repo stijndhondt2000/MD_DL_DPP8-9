@@ -62,7 +62,7 @@ def _load_config_from_artifacts(config_path: str | None, checkpoint_path: str) -
 		if not candidate or not os.path.exists(candidate):
 			continue
 
-		if candidate.endswith(".pt"):
+		if candidate.endswith(".json"):
 			return TrainingConfig.load(candidate)
 
 		with open(candidate, "r", encoding="utf-8") as handle:
