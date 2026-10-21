@@ -23,5 +23,6 @@ if __name__ == "__main__":
     # 2 cpus do 1 targz file in ~30 minutes. ~130 targz files in total = ~65 hours. 
     # To speed up the process, we can use 32 cpus to process multiple targz files in parallel. = ~4 hours.
     generate_full_dataset_from_tars(regenerate=True, num_proc=32, skip_existing=True, remove_temp_dataset=False)
+ 
     # Step 2: Prepare the dataset for model training by converting it into safetensors format
     prepare_safetensors(dataset_path=dataset_path, safetensors_path=safetensors_path, splits=['train', 'validation', 'test'], skip_existing_cache=True, redo_cache=False)

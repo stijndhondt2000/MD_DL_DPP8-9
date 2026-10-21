@@ -1,0 +1,17 @@
+.env bestand bevat paden
+
+tars of pdbs -> dataset (arrow) -> safetensors 
+tars of pdbs -> externe dataset (arrow) -> safetensors 
+32 CPU 96 Gb ram (oom bij 64), meer cpus = sneller, kijk "src/data/data_preprocessing/complete_data_preprocessing_pipeline.py"
+bash /project_antwerp/MD_DL_DPP8-9/run_command.sh "python3 -m src.data.data_preprocessing.complete_data_preprocessing_pipeline"
+
+
+1 GPU, 4 cpu, 96gb ram 
+safetensors -> model training
+model training
+bash /project_antwerp/MD_DL_DPP8-9/run_experiment.sh "src.experiments.scnn"
+externe dataset testing
+
+X GPU, 4 cpu, 16gb ram 
+interpretability 
+bash /project_antwerp/MD_DL_DPP8-9/run_command.sh "python3 -m src.interpretability.run_interpretability_all_trajectories"

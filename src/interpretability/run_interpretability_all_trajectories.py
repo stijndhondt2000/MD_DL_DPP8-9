@@ -206,7 +206,6 @@ def execute_model_interpretation(output_root_dir: Path = None, input_dir: Path =
                         / ligand
                         / replica
                         / model_name
-                        / "images"
                     )
                     if already_completed(output_dir):
                         print(
@@ -265,7 +264,6 @@ if __name__ == "__main__":
     execute_model_interpretation(
         input_dir=root_input_dir,
         output_root_dir=all_frames_output_dir
-
     )
     count_significant_residues(
         input_folder=all_frames_output_dir,

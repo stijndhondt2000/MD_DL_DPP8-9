@@ -1,12 +1,6 @@
-import functools
-
 from concurrent.futures import ProcessPoolExecutor, as_completed
-
-from datasets import Dataset, load_dataset, NamedSplit, concatenate_datasets, load_from_disk
-from datasets.data_files import DownloadConfig
-import tarfile
+from datasets import Dataset, NamedSplit, concatenate_datasets, load_from_disk
 import os
-import tempfile
 from pathlib import Path
 
 
@@ -158,7 +152,7 @@ def generate_full_dataset_from_tars(regenerate=False, num_proc=32, skip_existing
     print(f"\tFinal training set size: {len(full_training_set)}")
     print(f"\tFinal validation set size: {len(full_val_set)}")
     print(f"\tFinal test set size: {len(full_test_set)}")
-    
+
     print("Saving final datasets to disk...")
 
     # Persist each split separately so training scripts can load only the subset

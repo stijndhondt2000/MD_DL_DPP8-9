@@ -33,7 +33,7 @@ def parse_pdb_streaming_many_tars(tar_paths):
 		)
 
 
-def generate_unique_test_runs_dataset(
+def generate_external_test_runs_dataset(
 	tar_folder,
 	output_root,
 	num_proc=1,
@@ -51,12 +51,12 @@ def generate_unique_test_runs_dataset(
 		parse_pdb_streaming_many_tars,
 		gen_kwargs={"tar_paths": tar_paths},
 		num_proc=num_proc,
-		split=NamedSplit("unique_test_runs"),
+		split=NamedSplit("external_test_runs"),
 	)
-	print(f"Final unique_test_runs dataset size: {len(full_ds)}")
+	print(f"Final external_test_runs dataset size: {len(full_ds)}")
 
 	output_root = Path(output_root)
-	set_path = output_root / "unique_test_runs"
+	set_path = output_root / "external_test_runs"
 	set_path.mkdir(parents=True, exist_ok=True)
 	print(f"Saving dataset to: {set_path}")
 	full_ds.save_to_disk(
@@ -73,7 +73,7 @@ def main():
 		return -1
 	
 	parser = argparse.ArgumentParser(
-		description="Preprocess .tar.gz PDB trajectories into a single unique_test_runs split"
+		description="Preprocess .tar.gz PDB trajectories into a single external_test_runs split"
 	)
 	parser.add_argument("--tar-folder", required=True, help="Folder containing .tar.gz/.tgz files")
 	parser.add_argument("--output-root", required=True, help="Output root directory for the saved split")
@@ -81,7 +81,7 @@ def main():
 	parser.add_argument("--max-shard-size", default="4GB", help="HF dataset shard size")
 	args = parser.parse_args()
 
-	generate_unique_test_runs_dataset(
+	generate_external_test_runs_dataset(
 		tar_folder=args.tar_folder,
 		output_root=args.output_root,
 		num_proc=args.num_proc,
