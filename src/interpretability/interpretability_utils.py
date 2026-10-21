@@ -88,7 +88,8 @@ def _initilize_classification_model(checkpoint_path: str, device: torch.device) 
     model.eval()
 
     print(f"Loaded model '{model_name}' from checkpoint '{checkpoint_path}'.")
-
+    if not model:
+        raise ValueError("Something went wrong while loading the model. Please check the checkpoint and training config.")
     return model
 
 @dataclass
