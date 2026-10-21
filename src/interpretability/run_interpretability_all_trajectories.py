@@ -150,6 +150,9 @@ def worker(gpu_id, job_queue):
                 f"{model_name} | {replica_dir}: {e}",
                 flush=True,
             )
+            # print the traceback for debugging
+            import traceback
+            traceback.print_exc()
 
 
 
