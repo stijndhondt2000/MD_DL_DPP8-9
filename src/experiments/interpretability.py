@@ -57,7 +57,7 @@ def _load_config_from_artifacts(config_path: str | None, checkpoint_path: str) -
         if not os.path.exists(candidate):
             continue
 
-        if candidate.endswith(".pt"):
+        if candidate.endswith(".json"):
             return TrainingConfig.load(candidate)
 
         # JSON payloads can contain stringified class/dict values.

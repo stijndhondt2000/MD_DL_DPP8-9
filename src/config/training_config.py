@@ -110,6 +110,10 @@ class TrainingConfig:
 
     @classmethod
     def load(cls, json_path):
+        # ensure the path has .json extension
+        if not json_path.endswith(".json"):
+            raise ValueError(f"Expected a .json file for loading TrainingConfig, got: {json_path}")
+        
         with open(json_path, "r") as f:
             data = json.load(f)
 
