@@ -117,8 +117,8 @@ class TrainingConfig:
             try:
                 print(f"Error loading training config from {path}: {e}. Attempting to migrate from legacy format.")
                 data = cls.migrate_save(path)
-            except Exception as e:
-                print(f"Error migrating training config from {path}: {e}")
+            except Exception as e2:
+                print(f"Error migrating training config from {path}: {e2}. Unable to load training configuration.")
                 return None
         return cls(**data)
         
