@@ -110,6 +110,7 @@ class TrainingConfig:
 
     @classmethod
     def load(cls, json_path):
+        from dataclasses import fields
         # print(f"Loading TrainingConfig from {json_path}...")
         print(f"Loading TrainingConfig from {json_path}...")
         # ensure the path has .json extension
@@ -143,7 +144,9 @@ class TrainingConfig:
         for key in ("model_class", "criterion", "optimizer", "scheduler"):
             if key in data:
                 data[key] = resolve_class(data[key])
-
+        # Keep only fields supported by the current TrainingConfig.
+        valid_fields = {f.name for f in fields(cls)}
+        data = {k: v for k, v in data.items() if k in valid_fields}
         return cls(**data)
 
 
