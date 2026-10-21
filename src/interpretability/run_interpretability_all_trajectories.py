@@ -80,6 +80,8 @@ def worker(gpu_id, job_queue):
     model=None
     methods=None
     while True:
+        print(f"Press Enter to start job", flush=True)
+        input 
         job = job_queue.get()
 
         if job is None:
@@ -108,6 +110,7 @@ def worker(gpu_id, job_queue):
             else:
                 model = scnn
                 methods = scnn_methods
+            print(f"[GPU {gpu_id}] Loaded model '{model_name}' from checkpoint '{checkpoint}'. Model: {model}", flush=True)
             # disable printing from the interpretability function to avoid cluttering the output
             with contextlib.redirect_stdout(open(os.devnull, "w")):
                 execute_interpretability(
