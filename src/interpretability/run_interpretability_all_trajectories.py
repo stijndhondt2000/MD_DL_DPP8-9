@@ -103,14 +103,17 @@ def worker(gpu_id, job_queue):
         )
         
         try:
-            # load the trained classification model from the provided checkpoint
             if model_name == "DCNN":
-                model = dcnn
-                methods = dcnn_methods
+                model, methods = dcnn, dcnn_methods
+            elif model_name == "SCNN":
+                model, methods = scnn, scnn_methods
             else:
-                model = scnn
-                methods = scnn_methods
-            print(f"[GPU {gpu_id}] Loaded model '{model_name}' from checkpoint '{checkpoint}'. Model: {model}", flush=True)
+                raise ValueError(f"Unknown model name: {model_name}")
+
+            if model is None or methods is None:
+                raise RuntimeError(
+                    f"{model_name} or its interpretability methods were not initialized"
+                )
             # disable printing from the interpretability function to avoid cluttering the output
             with contextlib.redirect_stdout(open(os.devnull, "w")):
                 execute_interpretability(
