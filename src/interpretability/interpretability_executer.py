@@ -452,9 +452,12 @@ def execute_interpretability(pdb_file=None, pdb_directory=None, output_dir=None,
             plt.savefig(save_path)
             plt.clf()
             print(f"\tSaved attribution heatmap for {method} to {save_path}")
-
-            # overlay the heatmap on the transformed sample image and save it for visualization
-            sample_image = sample_tensor.detach().cpu().permute(1, 2, 0).numpy()
+            image_path = os.path.join(image_dir, f"{pdb_id}_transformed_sample.png")
+            # if pdb_id is average, use the first sample's transformed image for overlay
+            if pdb_id == "average":
+                image_path = os.path.join(image_dir, f"{samples[0]['pdb_id']}_transformed_sample.png")
+            sample_image = plt.imread(image_path)
+            sample_tensor = torch.tensor(sample_image, dtype=torch.float32).permute(2, 0, 1).to(device)  # convert to tensor and move to device
             heatmap = plt.get_cmap("hot")(spatial_scores.cpu())[:, :, :3]  # get RGB values from heatmap using the normalized map
             overlay = (0.6 * sample_image + 0.4 * heatmap).clip(0, 1)
             overlay_save_path = os.path.join(image_dir, f"{pdb_id}_{method}_overlay.png")
@@ -512,6 +515,8 @@ def execute_interpretability(pdb_file=None, pdb_directory=None, output_dir=None,
             plt.clf()
             print(f"\tSaved comparison plot for {method} to {comparison_save_path}")
             pdb_filepath = pdb_id
+            if pdb_id == "average":
+                pdb_filepath = samples[0]["pdb_id"]
             if pdb_directory:
                 pdb_filepath = os.path.join(pdb_directory, f"{pdb_id}.pdb")
             # create a colored PDB file with the attribution scores stored in the B-factor column for visualization in PyMOL
