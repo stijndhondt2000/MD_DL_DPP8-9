@@ -185,6 +185,7 @@ def execute_model_interpretation(output_root_dir: Path = None, input_dir: Path =
                         / ligand
                         / replica
                         / model_name
+                        / "images"
                     )
                     if already_completed(output_dir):
                         print(
@@ -229,85 +230,6 @@ def execute_model_interpretation(output_root_dir: Path = None, input_dir: Path =
         p.join()
 
 
-
-
-    ctx = mp.get_context("spawn")
-
-    job_queue = ctx.Queue()
-    jobs = []
-
-    for dpp_dir in ROOT_DIRECTORY.iterdir():
-        if not dpp_dir.is_dir():
-            continue
-
-        dpp = dpp_dir.stem
-        if dpp not in ["DPP8", "DPP9"]:
-            print(f"Skipping {dpp_dir} (not DPP8 or DPP9)")
-            continue
-        for ligand_dir in dpp_dir.iterdir():
-            if not ligand_dir.is_dir():
-                continue
-
-            ligand = ligand_dir.stem
-            binding_type = ligant_to_class(ligand_name=ligand)
-
-            for replica_dir in ligand_dir.iterdir():
-                if not replica_dir.is_dir():
-                    continue
-
-                replica = replica_dir.stem
-
-                for model_name, checkpoint in MODEL_CHECKPOINTS.items():
-                    output_dir = (
-                        ROOT_OUTPUT_DIRECTORY
-                        / dpp
-                        / ligand
-                        / replica
-                        / model_name
-                        / "images"
-                    )
-                    # for each sample containing transformed sample, check if the corresponding PDB file exists in the output directory
-                    for sample in output_dir.glob("*_blurred_sample.png"):
-                        # only if the sample has 3 pml files (one for each method) and 3 colored PDB files (one for each method), then skip it
-                        # pml_files = list(output_dir.glob(f"{sample.stem.replace('_blurred_sample', '')}_*.pml"))
-                        # colored_pdb_files = list(output_dir.glob(f"{sample.stem.replace('_blurred_sample', '')}_*_bfactor.pdb"))
-                        # if len(pml_files) == 3 and len(colored_pdb_files) == 3:
-                        #     print(f"Skipping {sample.name} in {output_dir} (already completed)")
-                        #     continue
-                        jobs.append(
-                            (
-                                replica_dir,
-                                output_dir,
-                                sample
-                            )
-                        )
-                    # handle the average sample as well
-
-    print(f"Total jobs: {len(jobs)}")
-
-    # Put all jobs into the shared queue.
-    nr_workers = 16
-    for job in jobs:
-        job_queue.put(job)
-
-    # One worker per GPU.
-    workers = []
-
-    for worker_id in range(nr_workers):
-        p = ctx.Process(
-            target=pdb_worker,
-            args=(job_queue,),
-        )
-        p.start()
-        workers.append(p)
-
-    # One sentinel per worker.
-    for _ in range(nr_workers):
-        job_queue.put(None)
-
-    # Wait for workers.
-    for p in workers:
-        p.join()          
 
 if __name__ == "__main__":
     # read OUTPUT_DIR from .env file 
