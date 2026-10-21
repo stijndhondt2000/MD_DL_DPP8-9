@@ -104,9 +104,22 @@ class TrainingConfig:
             json.dump(d, f, indent=4)
     def reset_cpus(self):
         self.num_cpus = calculate_num_cpus()
+
+    @classmethod
+    def verify_structure(cls, path, data):
+        """
+        Verify and adjust the structure of the loaded data to ensure compatibility with the TrainingConfig dataclass.
+        """
+        # if src.Models is referenced in model_class, redirect it to the new src.models module        
+        if "model_class" in data and isinstance(data["model_class"], str) and data["model_class"].startswith("src.Models"):
+            data["model_class"] = data["model_class"].replace("src.Models", "src.models")
+        return data
+
     @classmethod
     def load(cls, path):
-        data = torch.load(path, weights_only=False)
+        data = torch.load(path, map_location="cpu", weights_only=False)
+        data = cls.verify_structure(path, data)
+
         return cls(**data)
 
 
