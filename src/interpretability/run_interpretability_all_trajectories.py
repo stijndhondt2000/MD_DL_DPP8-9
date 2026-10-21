@@ -311,11 +311,11 @@ def execute_model_interpretation(output_dir: Path = None, input_dir: Path = None
 if __name__ == "__main__":
     # read OUTPUT_DIR from .env file 
     load_dotenv()
-    root_input_dir = os.path("/project_antwerp/dataset/decompressed_both_datasets_every1000/")
+    root_input_dir = Path("/project_antwerp/dataset/decompressed_both_datasets_every1000/")
     root_output_dir = os.getenv("OUTPUT_DIR", default="/project_antwerp/MD_DL_DPP8-9/output/")
-    interpretability_output_dir = os.path.join(root_output_dir, "interpretability")
-    all_frames_output_dir = os.path.join(interpretability_output_dir, "all_frames")
-    aggregated_replicas_output_dir = os.path.join(interpretability_output_dir, "aggregated_replicas")
+    interpretability_output_dir = Path.join(root_output_dir, "interpretability")
+    all_frames_output_dir = Path.join(interpretability_output_dir, "all_frames")
+    aggregated_replicas_output_dir = Path.join(interpretability_output_dir, "aggregated_replicas")
     os.makedirs(all_frames_output_dir, exist_ok=True)
     os.makedirs(aggregated_replicas_output_dir, exist_ok=True)
     execute_model_interpretation(
