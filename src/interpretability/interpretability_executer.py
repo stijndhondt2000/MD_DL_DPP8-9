@@ -241,17 +241,19 @@ def _write_bfactor_colored_pdb(pdb_file: str, output_path: str, atom_scores: tor
 def save_attribution_colored_pdbs(
     pdb_file: str,
     output_dir: str,
+    output_filename: str,
     attribution: torch.Tensor,
     num_atoms: int,
     method: int
 ) -> list[str]:
     atom_scores = _attribution_to_atom_scores(attribution, num_atoms)
     atom_scores = _normalize_scores(atom_scores)
-    return save_attribution_colored_pdbs_spatial_scores(pdb_file, output_dir, atom_scores, method)
+    return save_attribution_colored_pdbs_spatial_scores(pdb_file, output_filename, output_dir, atom_scores, method)
 
     
 def save_attribution_colored_pdbs_spatial_scores(
     pdb_file: str,
+    output_filename: str,
     output_dir: str,
     spatial_scores: torch.Tensor,
     method: int
@@ -260,7 +262,7 @@ def save_attribution_colored_pdbs_spatial_scores(
 
     # the most important atoms will have a B-factor of 100, the least important will have a B-factor of 0, and the others will be scaled in between
     # this allows for easy visualization in PyMOL using a spectrum from gray (0) to red (100)
-    output_path = os.path.join(output_dir, f"{Path(pdb_file).stem}_{method}_bfactor.pdb")
+    output_path = os.path.join(output_dir, f"{output_filename}_{method}_bfactor.pdb")
     _write_bfactor_colored_pdb(pdb_file, output_path, spatial_scores)
     print(f"Saved colored PDB for {method}: {output_path}")
     return output_path
@@ -516,12 +518,13 @@ def execute_interpretability(pdb_file=None, pdb_directory=None, output_dir=None,
             print(f"\tSaved comparison plot for {method} to {comparison_save_path}")
             pdb_filepath = pdb_id
             if pdb_id == "average":
-                pdb_filepath = samples[0]["pdb_id"]
-            if pdb_directory:
+                pdb_filepath = os.path.join(pdb_directory, f"{samples[0]["pdb_id"]}.pdb")
+            elif pdb_directory:
                 pdb_filepath = os.path.join(pdb_directory, f"{pdb_id}.pdb")
             # create a colored PDB file with the attribution scores stored in the B-factor column for visualization in PyMOL
             colored_pdb_path = save_attribution_colored_pdbs(
                 pdb_file=pdb_filepath,
+                output_filename=pdb_id,
                 output_dir=image_dir,
                 attribution=attribution,
                 num_atoms=num_atoms,
