@@ -22,7 +22,9 @@ import signal
 import threading
 import sys
 label_encoder = LabelEncoder()
-
+import os
+from datasets import config
+from huggingface_hub import constants
 # A global event is used so the SIGUSR1 handler can request a graceful shutdown
 # from anywhere in the preprocessing pipeline without raising immediately in the
 # signal handler itself.
@@ -196,14 +198,28 @@ def _materialize_shard_arrays(dataset_split, start, end):
     return data_np, labels_np, num_atoms_np
 
 
+def print_huggingface_cache_info():
+
+
+    print("=== Hugging Face cache configuration ===")
+    print("HF_HOME:", os.environ.get("HF_HOME"))
+    print("HF_DATASETS_CACHE env:", os.environ.get("HF_DATASETS_CACHE"))
+    print("HF_HUB_CACHE env:", os.environ.get("HF_HUB_CACHE"))
+
+    print("\n=== Effective runtime paths ===")
+    print("Datasets cache:", config.HF_DATASETS_CACHE)
+    print("Hub cache:", constants.HF_HUB_CACHE)
+    print("Hub home:", constants.HF_HOME)
+    
+
 def _download_dataset(dataset_path, splits=None) -> datasets.DatasetDict:
     """Download the dataset using Hugging Face's `datasets` library."""
     # All dataset loading and caching behavior is centralized here so the rest of
     # the pipeline can assume it receives a ready-to-use DatasetDict.
     logging.info("Downloading dataset from Hugging Face...")
-    cache_dir = os.environ.get("HF_DOWNLOADED_DATASET_DIR")
-    if not cache_dir:
-        logging.warning("HF_DOWNLOADED_DATASET_DIR not set. Using default cache directory.")
+    # see which cache directory HF datasets is using. This is important for debugging and for ensuring that the cache directory is not on a slow network drive.
+    print_huggingface_cache_info()
+
     logging.info(f"Only downloading splits: {splits}")
     _split_arg = {}
     for split in splits:
@@ -212,7 +228,6 @@ def _download_dataset(dataset_path, splits=None) -> datasets.DatasetDict:
         logging.info(f"\t\tDownloading of {split} split")
         _split_arg[split] = split
     logging.info(f"Downloading dataset from {dataset_path} with splits {_split_arg}...")
-    logging.info(f"\tUsing cache directory: {cache_dir}")
     # Use half the CPUs for download/loading work so the machine still has room
     # for the later preprocessing stages and the operating system.
     num_proc=calculate_num_cpus()//2
