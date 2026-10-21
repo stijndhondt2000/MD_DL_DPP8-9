@@ -71,7 +71,7 @@ def worker(gpu_id, job_queue):
     if "SCNN" in MODEL_CHECKPOINTS:
         scnn = _initilize_classification_model(MODEL_CHECKPOINTS["SCNN"], device=torch.device("cuda"))
         scnn_methods = solve_methods(CaptumInterpreter(scnn), method_args=METHOD_ARGS)
-
+    
     # Import CUDA-dependent code only after CUDA_VISIBLE_DEVICES is set
     # if your imports initialize CUDA.
     torch.cuda.set_device(0)

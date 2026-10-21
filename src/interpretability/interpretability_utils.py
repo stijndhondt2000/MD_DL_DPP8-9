@@ -81,11 +81,14 @@ def _initilize_classification_model(checkpoint_path: str, device: torch.device) 
 
     model_class = _resolve_model_class(model_name)
     model_args = dict(config.model_args) if isinstance(config.model_args, dict) else {}
-
+    print(f"model_class: {model_class}, model_args: {model_args}, device: {device}")
     model = model_class(**model_args).to(device)
     state_dict = _load_state_dict(checkpoint_path, device)
     _load_weights(model, state_dict)
     model.eval()
+
+    print(f"Loaded model '{model_name}' from checkpoint '{checkpoint_path}'.")
+
     return model
 
 @dataclass
