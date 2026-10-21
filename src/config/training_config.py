@@ -109,7 +109,7 @@ class TrainingConfig:
 
 
     @classmethod
-    def load(cls, path):
+    def load(cls, json_path):
         with open(json_path, "r") as f:
             data = json.load(f)
 

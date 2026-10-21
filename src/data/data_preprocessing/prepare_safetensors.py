@@ -210,7 +210,7 @@ def print_huggingface_cache_info():
     print("Datasets cache:", config.HF_DATASETS_CACHE)
     print("Hub cache:", constants.HF_HUB_CACHE)
     print("Hub home:", constants.HF_HOME)
-    
+
 
 def _download_dataset(dataset_path, splits=None) -> datasets.DatasetDict:
     """Download the dataset using Hugging Face's `datasets` library."""
@@ -233,11 +233,10 @@ def _download_dataset(dataset_path, splits=None) -> datasets.DatasetDict:
     num_proc=calculate_num_cpus()//2
     logging.info(f"\tUsing {num_proc} CPU workers for dataset loading")
 
-    logging.debug(f"Dataset loading parameters: dataset_location={dataset_path}, splits={splits}, cache_dir={cache_dir}, num_proc={num_proc}")
+    logging.debug(f"Dataset loading parameters: dataset_location={dataset_path}, splits={splits}, num_proc={num_proc}")
     dataset_dict: datasets.DatasetDict = datasets.load_dataset(
         dataset_path,
         split=_split_arg,
-        cache_dir=cache_dir,
         token=os.environ.get("HF_TOKEN"),
         num_proc=num_proc,
     )
@@ -255,7 +254,7 @@ def calculate_sample_size(sample, prefix="sample"):
         size = sample.nbytes
         return size
 
-    # Torch tensors are handled explicitly so the size estimate remains accurate
+    # Print the size of each field in the sample
     # if a sample has already been converted from numpy.
     if isinstance(sample, torch.Tensor):
         size = sample.element_size() * sample.nelement()
