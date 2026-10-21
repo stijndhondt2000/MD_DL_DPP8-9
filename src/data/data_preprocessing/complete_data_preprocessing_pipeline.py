@@ -18,20 +18,10 @@ if __name__ == "__main__":
     tar_folder = dotenv_manager.get_compressed_dataset_directory()
     dataset_path = dotenv_manager.get_dataset_directory()
     safetensors_path = dotenv_manager.get_safetensors_directory()
-    # hf datasets cache root directory
-    hf_datasets_cache_dir = dotenv_manager.get_env_variable("HF_HOME")
-    print(hf_datasets_cache_dir)
-    for var in [
-        "HF_HOME",
-        "HF_DATASETS_CACHE",
-        "HUGGINGFACE_HUB_CACHE",
-        "XDG_CACHE_HOME",
-    ]:
-        print(f"{var} = {os.environ.get(var)}")
 
     # Step 1: Generate the full dataset from TAR files
     # 2 cpus do 1 targz file in ~30 minutes. ~130 targz files in total = ~65 hours. 
     # To speed up the process, we can use 32 cpus to process multiple targz files in parallel. = ~4 hours.
-    # generate_full_dataset_from_tars(regenerate=True, num_proc=32, skip_existing=True, remove_temp_dataset=False)
+    generate_full_dataset_from_tars(regenerate=True, num_proc=32, skip_existing=True, remove_temp_dataset=False)
     # Step 2: Prepare the dataset for model training by converting it into safetensors format
-    # prepare_safetensors(dataset_path=dataset_path, safetensors_path=safetensors_path, splits=['train', 'validation', 'test'], skip_existing_cache=True, redo_cache=False)
+    prepare_safetensors(dataset_path=dataset_path, safetensors_path=safetensors_path, splits=['train', 'validation', 'test'], skip_existing_cache=True, redo_cache=False)
