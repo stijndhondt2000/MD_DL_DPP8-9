@@ -7,6 +7,8 @@ It performs the following steps:
 The pipeline is designed to be modular, allowing for easy adjustments to the preprocessing steps as needed.
 """
 
+import os
+
 from src.infrastructure.dotenvManager import dotenvManager
 from src.data.data_preprocessing.pre_processing import generate_full_dataset_from_tars
 from src.data.data_preprocessing.prepare_safetensors import prepare_safetensors
@@ -19,6 +21,14 @@ if __name__ == "__main__":
     # hf datasets cache root directory
     hf_datasets_cache_dir = dotenv_manager.get_env_variable("HF_HOME")
     print(hf_datasets_cache_dir)
+    for var in [
+        "HF_HOME",
+        "HF_DATASETS_CACHE",
+        "HUGGINGFACE_HUB_CACHE",
+        "XDG_CACHE_HOME",
+    ]:
+        print(f"{var} = {os.environ.get(var)}")
+
     # Step 1: Generate the full dataset from TAR files
     # 2 cpus do 1 targz file in ~30 minutes. ~130 targz files in total = ~65 hours. 
     # To speed up the process, we can use 32 cpus to process multiple targz files in parallel. = ~4 hours.
