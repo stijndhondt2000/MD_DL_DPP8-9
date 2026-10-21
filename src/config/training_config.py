@@ -2,6 +2,7 @@ from dataclasses import dataclass, field, asdict
 import importlib
 import os
 import sys
+import types
 from typing import Callable
 import json
 
@@ -119,7 +120,7 @@ class TrainingConfig:
                 data = cls.migrate_save(path)
             except Exception as e2:
                 print(f"Error migrating training config from {path}: {e2}. Unable to load training configuration.")
-                return None
+                raise e2
         return cls(**data)
         
     @classmethod
@@ -133,6 +134,24 @@ class TrainingConfig:
                 sys.modules[old_name] = importlib.import_module(new_name)
             except ModuleNotFoundError:
                 pass
+
+        
+        if "src.Transform" not in sys.modules:
+            dummy_module = types.ModuleType("src.Transform")
+
+            # Dummy functions to satisfy old pickle references.
+            def apply_image_transform(*args, **kwargs):
+                raise RuntimeError("Legacy transform is no longer supported")
+
+            def apply_image_transform_noscramble(*args, **kwargs):
+                raise RuntimeError("Legacy transform is no longer supported")
+
+            dummy_module.apply_image_transform = apply_image_transform
+            dummy_module.apply_image_transform_noscramble = (
+                apply_image_transform_noscramble
+            )
+
+            sys.modules["src.Transform"] = dummy_module
 
         
         data = torch.load(
