@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field, asdict
+import importlib
 import os
 import sys
 from typing import Callable
@@ -105,22 +106,42 @@ class TrainingConfig:
     def reset_cpus(self):
         self.num_cpus = calculate_num_cpus()
 
-    @classmethod
-    def verify_structure(cls, path, data):
-        """
-        Verify and adjust the structure of the loaded data to ensure compatibility with the TrainingConfig dataclass.
-        """
-        # if src.Models is referenced in model_class, redirect it to the new src.models module        
-        if "model_class" in data and isinstance(data["model_class"], str) and data["model_class"].startswith("src.Models"):
-            data["model_class"] = data["model_class"].replace("src.Models", "src.models")
-        return data
 
     @classmethod
     def load(cls, path):
-        data = torch.load(path, map_location="cpu", weights_only=False)
-        data = cls.verify_structure(path, data)
+        try:
+            data = torch.load(path, map_location="cpu", weights_only=False)
+            data = cls.verify_structure(path, data)
 
+        except Exception as e:
+            try:
+                print(f"Error loading training config from {path}: {e}. Attempting to migrate from legacy format.")
+                data = cls.migrate_save(path)
+            except Exception as e:
+                print(f"Error migrating training config from {path}: {e}")
+                return None
         return cls(**data)
+        
+    @classmethod
+    def migrate_save(cls, path):
+        legacy_modules = {
+            "src.Models.DCNN": "src.models.DCNN",
+            "src.Models.SCNN": "src.models.SCNN",
+        }
+        for old_name, new_name in legacy_modules.items():
+            try:
+                sys.modules[old_name] = importlib.import_module(new_name)
+            except ModuleNotFoundError:
+                pass
+
+        
+        data = torch.load(
+            path,
+            map_location="cpu",
+            weights_only=False,
+        )
+        return data
+
 
 
 @dataclass
