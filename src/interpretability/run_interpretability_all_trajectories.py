@@ -321,7 +321,7 @@ if __name__ == "__main__":
     os.makedirs(aggregated_replicas_output_dir, exist_ok=True)
     execute_model_interpretation(
         input_dir=root_input_dir,
-        output_dir=all_frames_output_dir
+        output_root_dir=all_frames_output_dir
 
     )
     count_significant_residues(
