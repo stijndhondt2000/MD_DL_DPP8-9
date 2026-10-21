@@ -456,8 +456,8 @@ def execute_interpretability(pdb_file=None, pdb_directory=None, output_dir=None,
             # if pdb_id is average, use the first sample's transformed image for overlay
             if pdb_id == "average":
                 image_path = os.path.join(image_dir, f"{samples[0]['pdb_id']}_transformed_sample.png")
-            sample_image = plt.imread(image_path)
-            sample_tensor = torch.tensor(sample_image, dtype=torch.float32).permute(2, 0, 1).to(device)  # convert to tensor and move to device
+            sample_image = plt.imread(image_path)[:, :, :3] 
+            sample_tensor = torch.tensor(sample_image, dtype=torch.float32).permute(2, 0, 1).to(device) # convert to tensor and move to device
             heatmap = plt.get_cmap("hot")(spatial_scores.cpu())[:, :, :3]  # get RGB values from heatmap using the normalized map
             overlay = (0.6 * sample_image + 0.4 * heatmap).clip(0, 1)
             overlay_save_path = os.path.join(image_dir, f"{pdb_id}_{method}_overlay.png")
