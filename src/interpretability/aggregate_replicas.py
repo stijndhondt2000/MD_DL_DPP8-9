@@ -4,9 +4,9 @@ from src.utils.utils import ligant_to_class
 import time
 import os
 
-def count_significant_residues(input_folder: Path = Path("/home/stijn/Sam_ModelVisualisation/output_interpretability_final/output2"),/
-                            output_folder_root: Path = Path("/home/stijn/Sam_ModelVisualisation/output_interpretability_final/output4"),/   
-                            base_pdb_file_folder: Path = Path("/home/stijn/Sam_ModelVisualisation/output_interpretability_final/"),/
+def count_significant_residues(input_folder: Path = Path("/home/stijn/Sam_ModelVisualisation/output_interpretability_final/output2"),
+                            output_folder_root: Path = Path("/home/stijn/Sam_ModelVisualisation/output_interpretability_final/output4"),   
+                            base_pdb_file_folder: Path = Path("/home/stijn/Sam_ModelVisualisation/output_interpretability_final/"),
                             methods: list[str] = ["saliency", "occlusion", "integrated_gradients"]):
                                                                                                                                                                                                                                                                             
     for dpp_dir in input_folder.iterdir():
