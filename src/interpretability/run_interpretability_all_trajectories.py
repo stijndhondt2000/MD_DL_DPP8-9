@@ -60,8 +60,10 @@ def already_completed(output_dir: Path) -> bool:
     return False
 
 def worker(gpu_id, job_queue):
-    # preload both models to avoid reloading them for each job
-
+    scnn = None
+    dcnn = None
+    scnn_methods = None
+    dcnn_methods = None
 
     # Each worker is permanently assigned to one GPU.
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
@@ -71,7 +73,7 @@ def worker(gpu_id, job_queue):
     if "SCNN" in MODEL_CHECKPOINTS:
         scnn = _initilize_classification_model(MODEL_CHECKPOINTS["SCNN"], device=torch.device("cuda"))
         scnn_methods = solve_methods(CaptumInterpreter(scnn), method_args=METHOD_ARGS)
-    
+
     # Import CUDA-dependent code only after CUDA_VISIBLE_DEVICES is set
     # if your imports initialize CUDA.
     torch.cuda.set_device(0)
