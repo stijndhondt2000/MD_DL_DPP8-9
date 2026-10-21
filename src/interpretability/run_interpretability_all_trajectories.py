@@ -74,7 +74,7 @@ def worker(gpu_id, job_queue):
     print("GPU:", torch.cuda.get_device_name(0))
     print("Capability:", torch.cuda.get_device_capability(0))
     print("PyTorch CUDA:", torch.version.cuda)
-    print("PyTorch architectures:", torch.cuda.get_arch_list())
+    print("PyTorch architectures:", torch.cuda.get_arch_list(), flush=True)
 
     x = torch.randn(128, 128, device="cuda")
     y = x @ x
