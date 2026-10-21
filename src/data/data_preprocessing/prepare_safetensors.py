@@ -463,7 +463,7 @@ def prepare_safetensors(splits=["train", "validation", "test", "unique_test_runs
     # This is the top-level orchestration routine: download the requested splits,
     # normalize them into fixed-size tensors, and persist the result as sharded
     # safetensors on disk.
-    dataset_dict = _download_dataset(dataset_location=dataset_path, splits=splits)
+    dataset_dict = _download_dataset(dataset_path=dataset_path, splits=splits)
     logging.debug(f"Downloaded dataset with splits: {list(dataset_dict.keys())}. Sample keys: {dataset_dict[splits[0]].column_names}")
     
     # Start with a relatively large batch size; if the environment cannot handle
