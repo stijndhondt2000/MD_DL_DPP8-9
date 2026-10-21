@@ -135,11 +135,11 @@ def worker(gpu_id, job_queue):
 
 
 
-def execute_model_interpretation(output_dir: Path = None, input_dir: Path = None):
+def execute_model_interpretation(output_root_dir: Path = None, input_dir: Path = None):
     """
     Execute the model interpretation for all trajectories.
 
-    :param output_dir: The directory where the output will be saved.
+    :param output_root_dir: The directory where the output will be saved.
     :param input_dir: The directory where the input data is located.
     """
     num_gpus = torch.cuda.device_count()
@@ -180,7 +180,7 @@ def execute_model_interpretation(output_dir: Path = None, input_dir: Path = None
                 for model_name, checkpoint in MODEL_CHECKPOINTS.items():
 
                     output_dir = (
-                        output_dir
+                        output_root_dir
                         / dpp
                         / ligand
                         / replica
