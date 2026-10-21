@@ -65,18 +65,16 @@ def worker(gpu_id, job_queue):
     scnn_methods = None
     dcnn_methods = None
 
-    # Each worker is permanently assigned to one GPU.
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
-    # Import CUDA-dependent code only after CUDA_VISIBLE_DEVICES is set
-    # if your imports initialize CUDA.
-    torch.cuda.set_device(0)
+    # Each worker uses its assigned physical GPU.
+    torch.cuda.set_device(gpu_id)
+    device = torch.device(f"cuda:{gpu_id}")
 
 
     if "DCNN" in MODEL_CHECKPOINTS:
-        dcnn = _initilize_classification_model(MODEL_CHECKPOINTS["DCNN"], device=torch.device("cuda"))
+        dcnn = _initilize_classification_model(MODEL_CHECKPOINTS["DCNN"], device=device)
         dcnn_methods = solve_methods(CaptumInterpreter(dcnn), method_args=METHOD_ARGS)
     if "SCNN" in MODEL_CHECKPOINTS:
-        scnn = _initilize_classification_model(MODEL_CHECKPOINTS["SCNN"], device=torch.device("cuda"))
+        scnn = _initilize_classification_model(MODEL_CHECKPOINTS["SCNN"], device=device)
         scnn_methods = solve_methods(CaptumInterpreter(scnn), method_args=METHOD_ARGS)
 
 
