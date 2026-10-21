@@ -359,7 +359,7 @@ def execute_interpretability(pdb_file=None, pdb_directory=None, output_dir=None,
         # load the trained classification model from the provided checkpoint    
         model = _initilize_classification_model(model_checkpoint, device=device)
     else:
-        model
+        model = model_checkpoint
     if methods is None:
         methods = solve_methods(CaptumInterpreter(model), method_args=method_args)
     delta_time = time.time() - start_time
