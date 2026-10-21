@@ -70,7 +70,7 @@ def generate_dataset_from_tars(streaming_pdb_dataset_path, tar_folder, regenerat
     if not tar_files:
         raise FileNotFoundError(f"No TAR.gz files found in {tar_folder}. Please ensure the TAR files are present.")
 
-    min_expected_size = 3.5 * 10**9
+    min_expected_size = 3.5 * 10**9 # 3.5 GB
     workers = max(1, min(num_proc//2, len(tar_files)))
 
     if workers == 1:
@@ -104,7 +104,7 @@ def generate_dataset_from_tars(streaming_pdb_dataset_path, tar_folder, regenerat
     print("✓ Streaming dataset loaded and saved to disk.")
 
 
-def generate_full_dataset_from_tars(regenerate=False, num_proc=32, skip_existing=True):
+def generate_full_dataset_from_tars(regenerate=False, num_proc=32, skip_existing=True, remove_temp_dataset=True):
     """Build the final train/validation/test dataset from all TAR shards.
 
     The function first materializes per-trajectory datasets on disk, then reloads
@@ -169,7 +169,7 @@ def generate_full_dataset_from_tars(regenerate=False, num_proc=32, skip_existing
         dset.save_to_disk(set_path, max_shard_size="4GB", num_proc=num_proc)
 
     # remove the temporary dataset cache to free up disk space after the final splits are saved.
-    if os.path.exists(temp_dataset_path):
+    if os.path.exists(temp_dataset_path) and remove_temp_dataset:
         shutil.rmtree(temp_dataset_path)
         print(f"Removed temporary dataset cache at {temp_dataset_path}.")
     print("Datasets saved.")

@@ -10,7 +10,6 @@ import datasets
 # The label encoder is shared by the batch packing step so that string labels are
 # converted to stable numeric IDs before being written to disk.
 import logging
-logging.basicConfig(level=logging.DEBUG)
 import os 
 from src.config.training_config import calculate_num_cpus
 import numpy as np
@@ -563,6 +562,8 @@ def prepare_safetensors(splits=["train", "validation", "test", "unique_test_runs
 
 if __name__ == "__main__":
     dataset_path =  dotenvManager().get_dataset_directory()
+    logging.basicConfig(level=logging.DEBUG)
+
     try:
         # Allow the module to be executed directly for local preprocessing runs
         # without needing a separate wrapper script.
