@@ -1,4 +1,5 @@
 from dotenv import load_dotenv
+load_dotenv() 
 from concurrent.futures import ProcessPoolExecutor, FIRST_COMPLETED, wait
 
 from src.infrastructure.dotenvManager import dotenvManager
