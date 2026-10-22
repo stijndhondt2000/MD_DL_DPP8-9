@@ -584,7 +584,7 @@ def prepare_safetensors(splits=["train", "val", "test", "unique_test_runs"], \
                     dataset_dict, 
                     split, 
                     cache_path=safetensors_filepath,
-                    shard_size=1000,  # Adjust based on your memory
+                    shard_size=512,  # Adjust based on your memory
                     total_nr_workers=num_workers,
                 )
                 break
