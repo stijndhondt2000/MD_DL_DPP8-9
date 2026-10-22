@@ -97,8 +97,66 @@ def generate_dataset_from_tars(streaming_pdb_dataset_path, tar_folder, regenerat
 
     print("✓ Streaming dataset loaded and saved to disk.")
 
+def generate_external_dataset_from_tars(regenerate=False, num_proc=32, skip_existing=True, remove_temp_dataset=True):
+    """Build the external dataset from all TAR shards.
 
-def generate_full_dataset_from_tars(regenerate=False, num_proc=32, skip_existing=True, remove_temp_dataset=True):
+    The function first materializes per-trajectory datasets on disk, then reloads
+    them, concatenates them into one large dataset, shuffles the rows, and finally
+    applies the project-specific train/val/test split.
+    """
+    dotenv_manager = dotenvManager()
+    # folder with tar files
+    tar_folder = dotenv_manager.get_compressed_external_dataset_directory()
+    # ensure tar foler exists and is not empty
+    if not os.path.exists(tar_folder) or len(os.listdir(tar_folder)) == 0:
+        raise FileNotFoundError(f"TAR folder {tar_folder} does not exist or is empty. Please ensure the TAR files are present.")
+    # folder to store the intermediate dataset cache
+    print("Starting external data preprocessing...")
+    dataset_path = dotenv_manager.get_dataset_directory()
+    temp_dataset_path = os.path.join(dataset_path, "temp")
+    # Ensure the intermediate dataset cache exists before writing any shards.
+    os.makedirs(temp_dataset_path, exist_ok=True)
+    os.makedirs(dataset_path, exist_ok=True)
+
+    # Step 1: turn each TAR archive into a saved dataset shard on disk.
+    generate_dataset_from_tars(temp_dataset_path, tar_folder, regenerate=regenerate, num_proc=num_proc, skip_existing=skip_existing)
+
+    full_ds = []
+    # Step 2: reload every shard and keep the partial datasets in memory long
+    # enough to concatenate them into a single dataset object.
+    for last_child in os.listdir(temp_dataset_path):
+        traj_path = os.path.join(temp_dataset_path, last_child)
+
+        print(f"Loading dataset for traj: {last_child}...")
+        partial_ds = load_from_disk(traj_path)
+        full_ds.append(partial_ds)
+
+    # Merge all trajectory-level shards into one dataset before shuffling and
+    # splitting. This gives the training pipeline a single consistent dataset view.
+    full_ds = concatenate_datasets(full_ds)
+    print(f"✓ Full dataset loaded with {len(full_ds)} samples.")
+
+    # Step 3: shuffle once with a fixed seed so the downstream split is
+    # deterministic and not correlated with the ordering of the source TARs.
+
+
+    # Log the final split size so preprocessing output can be verified quickly.
+    print(f"\tFinal external dataset size: {len(full_ds)}")
+
+    print("Saving final external dataset to disk...")
+
+    set_path = os.path.join(dataset_path, "external")
+    os.makedirs(set_path, exist_ok=True)
+    full_ds.save_to_disk(set_path, max_shard_size="4GB", num_proc=num_proc)
+
+    # remove the temporary dataset cache to free up disk space after the final splits are saved.
+    if os.path.exists(temp_dataset_path) and remove_temp_dataset:
+        shutil.rmtree(temp_dataset_path)
+        print(f"Removed temporary dataset cache at {temp_dataset_path}.")
+    print("Datasets saved.")
+
+
+def generate_development_dataset_from_tars(regenerate=False, num_proc=32, skip_existing=True, remove_temp_dataset=True):
     """Build the final train/validation/test dataset from all TAR shards.
 
     The function first materializes per-trajectory datasets on disk, then reloads
@@ -177,5 +235,5 @@ if __name__ == "__main__":
     # Generate the full dataset from TAR files
     # 2 cpus do 1 targz file in ~30 minutes. ~130 targz files in total = ~65 hours.
     # To speed up the process, we can use 32 cpus to process multiple targz files in parallel. = ~4 hours.
-    generate_full_dataset_from_tars(regenerate=False, num_proc=16, skip_existing=True)
+    generate_development_dataset_from_tars(regenerate=False, num_proc=16, skip_existing=True)
 

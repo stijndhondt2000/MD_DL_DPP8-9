@@ -479,7 +479,7 @@ def prepare_safetensors(splits=["train", "validation", "test", "unique_test_runs
     # normalize them into fixed-size tensors, and persist the result as sharded
     # safetensors on disk.
     dataset_dict = _download_dataset(dataset_path=dataset_path, splits=splits)
-    logging.debug(f"Downloaded dataset with splits: {list(dataset_dict.keys())}. Sample keys: {dataset_dict[splits[0]].column_names}")
+    logging.info(f"Downloaded dataset with splits: {list(dataset_dict.keys())}. Sample keys: {dataset_dict[splits[0]].column_names}")
     
     # Start with a relatively large batch size; if the environment cannot handle
     # it, the retry loop below reduces the batch size automatically.
@@ -506,7 +506,7 @@ def prepare_safetensors(splits=["train", "validation", "test", "unique_test_runs
         logging.debug(f"Checking for existing cache metadata at {cache_metadata_path} for {split} split...")
         if skip_existing_cache and os.path.exists(cache_metadata_path) and not redo_cache:
             # Metadata presence is used as the completion signal for a cached split.
-            logging.info(f"\t\tFound existing cached safetensors for {split} split in {safetensors_filepath}.")
+            logging.log(f"\t\tFound existing cached safetensors for {split} split in {safetensors_filepath}.")
             continue  # Skip if already cached (metadata presence indicates completed cache)
 
         arrow_cache_path = os.path.join(arrow_filepath, f"{split}_data.arrow")
@@ -530,7 +530,7 @@ def prepare_safetensors(splits=["train", "validation", "test", "unique_test_runs
                     desc=f"Encoding labels and packing coords for {split}",
                     cache_file_name=arrow_cache_path,
                 )
-                logging.info(f"\t\tEncoding and packing complete for {split} split. Saving to safetensors cache...")
+                logging.log(f"\t\tEncoding and packing complete for {split} split. Saving to safetensors cache...")
                 break
             except Exception as e:
                 logging.error(f"Error during map for {split} split with batch size {batch_size}: {e}")
@@ -538,9 +538,9 @@ def prepare_safetensors(splits=["train", "validation", "test", "unique_test_runs
                 if( _is_host_oom_error(e) or _is_map_worker_crash_error(e) ) and batch_size > 1:
                     # Back off conservatively so the next attempt uses less memory per
                     # map call and has a better chance of surviving.
-                    logging.info(f"Host-memory OOM during map for {split} split with batch size {batch_size}. Reducing batch size and retrying...")
+                    logging.error(f"Host-memory OOM during map for {split} split with batch size {batch_size}. Reducing batch size and retrying...")
                     batch_size = max(1, (3*batch_size) // 4)
-                    logging.info(f"\tNew batch size: {batch_size}")
+                    logging.error(f"\tNew batch size: {batch_size}")
                     continue
                 else:
                     raise 
@@ -553,7 +553,7 @@ def prepare_safetensors(splits=["train", "validation", "test", "unique_test_runs
                     dataset_dict, 
                     split, 
                     cache_path=safetensors_filepath,
-                    shard_size=5000,  # Adjust based on your memory
+                    shard_size=250,  # Adjust based on your memory
                     total_nr_workers=num_workers,
                 )
                 break
@@ -562,17 +562,17 @@ def prepare_safetensors(splits=["train", "validation", "test", "unique_test_runs
                 if (_is_host_oom_error(e) or _is_map_worker_crash_error(e)) and num_workers > 1:
                     # If saving fails because the process pool is too aggressive, back
                     # off by halving the worker count and try again.
-                    logging.info(
+                    logging.log(
                         f"Worker failure during safetensors saving for {split} with {num_workers} workers. "
                         "Reducing workers and retrying..."
                     )
                     num_workers = max(1, num_workers // 2)
-                    logging.info(f"\tNew number of workers: {num_workers}")
+                    logging.log(f"\tNew number of workers: {num_workers}")
                     continue
                 else:
                     raise
-        logging.info(f"\t\tFinished processing {split} split. Cached safetensors available at {safetensors_filepath}.")
-    logging.info("All splits processed and cached as safetensors.")
+        logging.log(f"\t\tFinished processing {split} split. Cached safetensors available at {safetensors_filepath}.")
+    logging.log("All splits processed and cached as safetensors.")
 
 
 if __name__ == "__main__":

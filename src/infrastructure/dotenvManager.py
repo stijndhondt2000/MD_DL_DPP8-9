@@ -33,3 +33,5 @@ class dotenvManager:
         return self.get_env_variable("DATASET_DIR", required=True)
     def get_compressed_dataset_directory(self):
         return self.get_env_variable("COMPRESSED_DATASET_DIR", required=True)
+    def get_compressed_external_dataset_directory(self):
+        return self.get_env_variable("COMPRESSED_EXTERNAL_DATASET_DIR", required=True)
