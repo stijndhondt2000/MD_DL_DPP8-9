@@ -57,14 +57,7 @@ def generate_dataset_from_tars(streaming_pdb_dataset_path, tar_folder, regenerat
     """
     if os.path.exists(streaming_pdb_dataset_path) and not regenerate:
         print(f"Streaming dataset already exists at {streaming_pdb_dataset_path}. Skipping regeneration as regenerate is False.")
-        # check if the existing dataset is of expected size
-        existing_size = 0
-        expected_size = 250 * 10**9  # > 250 GB
-        for element in os.scandir(streaming_pdb_dataset_path):
-            if element.is_file():
-                existing_size += os.path.getsize(element)
-        if existing_size >= expected_size:
-            return
+        return
 
     print(f"Creating dataset {streaming_pdb_dataset_path} from TAR files {tar_folder}")
     tar_files = sorted(Path(tar_folder).glob('*.tar.gz'))
@@ -121,9 +114,17 @@ def generate_external_dataset_from_tars(regenerate=False, num_proc=32, skip_exis
     print("Starting external data preprocessing...")
     dataset_path = dotenv_manager.get_dataset_directory()
     temp_dataset_path = os.path.join(dataset_path, "temp", "external")
+    external_dataset_path = os.path.join(dataset_path, "external")
+    
     # Ensure the intermediate dataset cache exists before writing any shards.
     os.makedirs(temp_dataset_path, exist_ok=True)
     os.makedirs(dataset_path, exist_ok=True)
+    os.makedirs(external_dataset_path, exist_ok=True)
+
+    if not regenerate and os.path.exists(external_dataset_path):
+        if "dataset_info.json" in os.listdir(external_dataset_path):
+            print(f"External dataset already exists at {external_dataset_path}. Skipping regeneration as regenerate is False.")
+            return
 
     # Step 1: turn each TAR archive into a saved dataset shard on disk.
     generate_dataset_from_tars(temp_dataset_path, tar_folder, regenerate=regenerate, num_proc=num_proc, skip_existing=skip_existing)
@@ -148,9 +149,7 @@ def generate_external_dataset_from_tars(regenerate=False, num_proc=32, skip_exis
 
     print("Saving final external dataset to disk...")
 
-    set_path = os.path.join(dataset_path, "external")
-    os.makedirs(set_path, exist_ok=True)
-    full_ds.save_to_disk(set_path, max_shard_size="4GB", num_proc=num_proc)
+    full_ds.save_to_disk(external_dataset_path, max_shard_size="4GB", num_proc=num_proc)
 
     # remove the temporary dataset cache to free up disk space after the final splits are saved.
     if os.path.exists(temp_dataset_path) and remove_temp_dataset:
@@ -214,13 +213,18 @@ def generate_development_dataset_from_tars(regenerate=False, num_proc=32, skip_e
     print(f"\tFinal validation set size: {len(full_val_set)}")
     print(f"\tFinal test set size: {len(full_test_set)}")
 
-    print("Saving final datasets to disk...")
+    print("Saving final development datasets to disk...")
 
     # Persist each split separately so training scripts can load only the subset
     # they need without reading the entire corpus every time.
-    for split_name, dset in train_val_test_split(full_set, train_fraction=0.7, val_fraction=0.15, seed=42).items():
+    for split_name, dset in train_val_test.items():
         set_path = os.path.join(dataset_path, split_name)
         os.makedirs(set_path, exist_ok=True)
+
+        if not regenerate and os.path.exists(set_path):
+            if "dataset_info.json" in os.listdir(set_path):
+                print(f"{split_name.capitalize()} dataset already exists at {set_path}. Skipping regeneration as regenerate is False.")
+                continue
         dset.save_to_disk(set_path, max_shard_size="4GB", num_proc=num_proc)
 
     # remove the temporary dataset cache to free up disk space after the final splits are saved.
