@@ -218,25 +218,21 @@ def load_from_disk(dataset_path, splits=None) -> datasets.DatasetDict:
 
     logging.info(f"Loading dataset from {dataset_path}")
 
-    dataset_dict: datasets.DatasetDict = datasets.load_from_disk(dataset_path)
+    loaded_splits = {}
 
-    if not isinstance(dataset_dict, datasets.DatasetDict):
-        raise TypeError(
-            f"Expected a DatasetDict at {dataset_path}, "
-            f"but got {type(dataset_dict).__name__}"
-        )
+    for split in splits:
+        split_path = os.path.join(dataset_path, split)
+
+        if not os.path.isdir(split_path):
+            raise FileNotFoundError(f"Missing split directory: {split_path}")
+
+        logging.info(f"Loading split '{split}' from {split_path}")
+        loaded_splits[split] = datasets.load_from_disk(split_path)
 
     # Keep only the requested splits.
-    missing_splits = set(splits) - set(dataset_dict.keys())
-    if missing_splits:
-        raise ValueError(
-            f"Requested splits not found: {sorted(missing_splits)}. "
-            f"Available splits: {list(dataset_dict.keys())}"
-        )
+    dataset_dict = datasets.DatasetDict(loaded_splits)
 
-    dataset_dict = datasets.DatasetDict({
-        split: dataset_dict[split] for split in splits
-    })
+
 
     logging.info(
         f"Dataset loaded successfully. Splits: {list(dataset_dict.keys())}"
