@@ -12,7 +12,7 @@ from torch.nn import CrossEntropyLoss
 
 from src.training.batch_preprocessing import prepare_model_batch
 from src.transform.tranformators import apply_image_transform, apply_image_transform_noscramble
-
+from src.utils.utils import calculate_num_cpus
 
 
 
