@@ -171,7 +171,7 @@ def generate_development_dataset_from_tars(regenerate=False, num_proc=32, skip_e
     # folder to store the intermediate dataset cache
     print("Starting data preprocessing...")
     dataset_path = dotenv_manager.get_dataset_directory()
-    temp_dataset_path = os.path.join(dataset_path, "temp")
+    temp_dataset_path = os.path.join(dataset_path, "temp", "development")
     # Ensure the intermediate dataset cache exists before writing any shards.
     os.makedirs(temp_dataset_path, exist_ok=True)
     os.makedirs(dataset_path, exist_ok=True)
