@@ -524,28 +524,16 @@ def prepare_safetensors(splits=["train", "val", "test", "unique_test_runs"], \
     # Rename columns to the schema expected by the packing and safetensors-saving
     # steps. ``coordinates`` becomes ``data`` and ``binding_type`` becomes labels.
     dataset_dict: datasets.DatasetDict = dataset_dict.rename_columns({'coordinates': 'data', 'binding_type': 'labels'})
-    if redo_cache and os.path.exists(safetensors_filepath):
-        # A forced rebuild starts by deleting the old cache directory entirely.
-        logging.warning(f"\t\tRedo cache enabled. Will overwrite existing safetensors cache for {safetensors_filepath}.")
-        shutil.rmtree(safetensors_filepath)
     os.makedirs(safetensors_filepath, exist_ok=True)
     
     for split in splits:
         _raise_if_stop_requested(f"split {split} start")
         cache_metadata_path = os.path.join(safetensors_filepath, f"{split}_metadata.pt")
         logging.debug(f"Checking for existing cache metadata at {cache_metadata_path} for {split} split...")
-        if skip_existing_cache and os.path.exists(cache_metadata_path) and not redo_cache:
-            # Metadata presence is used as the completion signal for a cached split.
-            logging.info(f"\t\tFound existing cached safetensors for {split} split in {safetensors_filepath}.")
-            continue  # Skip if already cached (metadata presence indicates completed cache)
 
-        arrow_cache_path = os.path.join(arrow_filepath, f"{split}_data.arrow")
         # Map first, save second: this keeps the intermediate Arrow cache separate
         # from the final safetensors shards and makes retry logic easier.
-        logging.info(f"\t\tProcessing {split} split with batch size {batch_size} and {num_workers} workers to cache {arrow_cache_path}...")
-        if redo_cache and os.path.exists(arrow_filepath):
-            shutil.rmtree(arrow_filepath)
-            logging.warning(f"\t\tRedo cache enabled. Removed existing arrow cache at {arrow_filepath} for {split} split.")
+        logging.info(f"\t\tProcessing {split} split with batch size {batch_size} and {num_workers} workers ...")
 
         while True:
             _raise_if_stop_requested(f"split {split} map")

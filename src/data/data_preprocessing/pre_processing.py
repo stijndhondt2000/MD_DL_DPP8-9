@@ -57,7 +57,14 @@ def generate_dataset_from_tars(streaming_pdb_dataset_path, tar_folder, regenerat
     """
     if os.path.exists(streaming_pdb_dataset_path) and not regenerate:
         print(f"Streaming dataset already exists at {streaming_pdb_dataset_path}. Skipping regeneration as regenerate is False.")
-        return
+        # check if the existing dataset is of expected size
+        existing_size = 0
+        expected_size = 250 * 10**9  # > 250 GB
+        for element in os.scandir(streaming_pdb_dataset_path):
+            if element.is_file():
+                existing_size += os.path.getsize(element)
+        if existing_size >= expected_size:
+            return
 
     print(f"Creating dataset {streaming_pdb_dataset_path} from TAR files {tar_folder}")
     tar_files = sorted(Path(tar_folder).glob('*.tar.gz'))
