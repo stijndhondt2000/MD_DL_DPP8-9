@@ -47,7 +47,7 @@ def _process_tar_file_to_dataset(tar_file: Path, streaming_pdb_dataset_path: str
     return {"status": "processed", "path": res_dir, "filename": filename}
 
 
-def generate_dataset_from_tars(streaming_pdb_dataset_path, tar_folder, regenerate=False, num_proc=32, skip_existing=True):
+def generate_dataset_from_tars(streaming_pdb_dataset_path, tar_folder, num_proc=32, skip_existing=True):
     """Convert every TAR file in ``tar_folder`` into a disk-backed dataset shard.
 
     The output directory ends up with one subdirectory per trajectory. Each
@@ -55,9 +55,6 @@ def generate_dataset_from_tars(streaming_pdb_dataset_path, tar_folder, regenerat
     the full corpus can later be reloaded and concatenated without reparsing the
     source TAR archives.
     """
-    if os.path.exists(streaming_pdb_dataset_path) and not regenerate:
-        print(f"Streaming dataset already exists at {streaming_pdb_dataset_path}. Skipping regeneration as regenerate is False.")
-        return
 
     print(f"Creating dataset {streaming_pdb_dataset_path} from TAR files {tar_folder}")
     tar_files = sorted(Path(tar_folder).glob('*.tar.gz'))
@@ -127,7 +124,7 @@ def generate_external_dataset_from_tars(regenerate=False, num_proc=32, skip_exis
             return
 
     # Step 1: turn each TAR archive into a saved dataset shard on disk.
-    generate_dataset_from_tars(temp_dataset_path, tar_folder, regenerate=regenerate, num_proc=num_proc, skip_existing=skip_existing)
+    generate_dataset_from_tars(temp_dataset_path, tar_folder, num_proc=num_proc, skip_existing=skip_existing)
 
     full_ds = []
     # Step 2: reload every shard and keep the partial datasets in memory long
@@ -180,7 +177,7 @@ def generate_development_dataset_from_tars(regenerate=False, num_proc=32, skip_e
     os.makedirs(dataset_path, exist_ok=True)
 
     # Step 1: turn each TAR archive into a saved dataset shard on disk.
-    generate_dataset_from_tars(temp_dataset_path, tar_folder, regenerate=regenerate, num_proc=num_proc, skip_existing=skip_existing)
+    generate_dataset_from_tars(temp_dataset_path, tar_folder, num_proc=num_proc, skip_existing=skip_existing)
 
     full_ds = []
     # Step 2: reload every shard and keep the partial datasets in memory long
