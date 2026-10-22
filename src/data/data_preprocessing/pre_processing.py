@@ -62,9 +62,8 @@ def generate_dataset_from_tars(streaming_pdb_dataset_path, tar_folder, num_proc=
         raise FileNotFoundError(f"No TAR.gz files found in {tar_folder}. Please ensure the TAR files are present.")
 
     min_expected_size = 3.5 * 10**9 # 3.5 GB
-    workers = max(1, min(num_proc//2, len(tar_files)))
 
-    if workers == 1:
+    if num_proc == 1:
         for tar_file in tar_files:
             _process_tar_file_to_dataset(
                 tar_file=tar_file,
@@ -73,7 +72,7 @@ def generate_dataset_from_tars(streaming_pdb_dataset_path, tar_folder, num_proc=
                 min_expected_size=min_expected_size,
             )
     else:
-        with ProcessPoolExecutor(max_workers=workers) as executor:
+        with ProcessPoolExecutor(max_workers=num_proc) as executor:
             futures = {
                 executor.submit(
                     _process_tar_file_to_dataset,
