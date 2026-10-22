@@ -25,7 +25,6 @@ import threading
 import sys
 label_encoder = LabelEncoder()
 import os
-from datasets import config
 from huggingface_hub import constants
 # A global event is used so the SIGUSR1 handler can request a graceful shutdown
 # from anywhere in the preprocessing pipeline without raising immediately in the
@@ -524,7 +523,7 @@ def prepare_safetensors(splits=["train", "val", "test", "unique_test_runs"], \
     arrow_filepath = dotenv_manager.get_dataset_directory()
     # Rename columns to the schema expected by the packing and safetensors-saving
     # steps. ``coordinates`` becomes ``data`` and ``binding_type`` becomes labels.
-    dataset_dict = dataset_dict.rename_columns({'coordinates': 'data', 'binding_type': 'labels'})
+    dataset_dict: datasets.DatasetDict = dataset_dict.rename_columns({'coordinates': 'data', 'binding_type': 'labels'})
     if redo_cache and os.path.exists(safetensors_filepath):
         # A forced rebuild starts by deleting the old cache directory entirely.
         logging.warning(f"\t\tRedo cache enabled. Will overwrite existing safetensors cache for {safetensors_filepath}.")

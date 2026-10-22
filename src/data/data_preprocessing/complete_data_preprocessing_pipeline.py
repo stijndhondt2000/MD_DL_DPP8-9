@@ -13,7 +13,7 @@ from src.infrastructure.dotenvManager import dotenvManager
 from src.data.data_preprocessing.pre_processing import generate_development_dataset_from_tars, generate_external_dataset_from_tars
 from src.data.data_preprocessing.prepare_safetensors import prepare_safetensors
 from src.utils.utils import calculate_num_cpus
-
+import logging
 if __name__ == "__main__":
     dotenv_manager = dotenvManager()
     tar_folder = dotenv_manager.get_compressed_dataset_directory()
@@ -21,7 +21,7 @@ if __name__ == "__main__":
     safetensors_path = dotenv_manager.get_safetensors_directory()
     num_cpus = calculate_num_cpus()
     num_proc = max(1, num_cpus//2) # hyperthreading 
-
+    logging.basicConfig(level=logging.DEBUG)
     # Step 1: Generate the full dataset from TAR files
     # 2 cpus do 1 targz file in ~30 minutes. ~130 targz files in total = ~65 hours. 
     # To speed up the process, we can use 32 cpus to process multiple targz files in parallel. = ~4 hours.
