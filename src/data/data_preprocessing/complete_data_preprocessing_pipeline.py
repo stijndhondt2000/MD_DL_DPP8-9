@@ -20,7 +20,7 @@ if __name__ == "__main__":
     dataset_path = dotenv_manager.get_dataset_directory()
     safetensors_path = dotenv_manager.get_safetensors_directory()
     num_cpus = calculate_num_cpus()
-    num_proc = min(1, num_cpus//2) # hyperthreading 
+    num_proc = max(1, num_cpus//2) # hyperthreading 
 
     # Step 1: Generate the full dataset from TAR files
     # 2 cpus do 1 targz file in ~30 minutes. ~130 targz files in total = ~65 hours. 
