@@ -113,7 +113,7 @@ def generate_external_dataset_from_tars(regenerate=False, num_proc=32, skip_exis
     # folder to store the intermediate dataset cache
     print("Starting external data preprocessing...")
     dataset_path = dotenv_manager.get_dataset_directory()
-    temp_dataset_path = os.path.join(dataset_path, "temp")
+    temp_dataset_path = os.path.join(dataset_path, "temp", "external")
     # Ensure the intermediate dataset cache exists before writing any shards.
     os.makedirs(temp_dataset_path, exist_ok=True)
     os.makedirs(dataset_path, exist_ok=True)
@@ -135,10 +135,6 @@ def generate_external_dataset_from_tars(regenerate=False, num_proc=32, skip_exis
     # splitting. This gives the training pipeline a single consistent dataset view.
     full_ds = concatenate_datasets(full_ds)
     print(f"✓ Full dataset loaded with {len(full_ds)} samples.")
-
-    # Step 3: shuffle once with a fixed seed so the downstream split is
-    # deterministic and not correlated with the ordering of the source TARs.
-
 
     # Log the final split size so preprocessing output can be verified quickly.
     print(f"\tFinal external dataset size: {len(full_ds)}")

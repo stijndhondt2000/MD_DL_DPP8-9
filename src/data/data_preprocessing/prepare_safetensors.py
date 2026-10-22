@@ -559,7 +559,6 @@ def prepare_safetensors(splits=["train", "val", "test", "unique_test_runs"], \
                     batch_size=batch_size,
                     num_proc=num_workers,
                     desc=f"Encoding labels and packing coords for {split}",
-                    cache_file_name=arrow_cache_path,
                 )
                 logging.info(f"\t\tEncoding and packing complete for {split} split. Saving to safetensors cache...")
                 break

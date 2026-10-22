@@ -10,7 +10,7 @@ The pipeline is designed to be modular, allowing for easy adjustments to the pre
 import os
 
 from src.infrastructure.dotenvManager import dotenvManager
-from src.data.data_preprocessing.pre_processing import generate_development_dataset_from_tars
+from src.data.data_preprocessing.pre_processing import generate_development_dataset_from_tars, generate_external_dataset_from_tars
 from src.data.data_preprocessing.prepare_safetensors import prepare_safetensors
 from src.utils.utils import calculate_num_cpus
 
@@ -25,10 +25,11 @@ if __name__ == "__main__":
     # Step 1: Generate the full dataset from TAR files
     # 2 cpus do 1 targz file in ~30 minutes. ~130 targz files in total = ~65 hours. 
     # To speed up the process, we can use 32 cpus to process multiple targz files in parallel. = ~4 hours.
-    # generate_development_dataset_from_tars(regenerate=True, num_proc=num_proc, skip_existing=True, remove_temp_dataset=False)
+    generate_development_dataset_from_tars(regenerate=False, num_proc=num_proc, skip_existing=True, remove_temp_dataset=False)
 
     # Step 2: Generate the external dataset 
+    generate_external_dataset_from_tars(regenerate=False, num_proc=num_proc, skip_existing=True, remove_temp_dataset=False)
 
  
     # Step 3: Prepare the dataset for model training by converting it into safetensors format
-    prepare_safetensors(dataset_path=dataset_path, safetensors_path=safetensors_path, splits=['train', 'val', 'test'], skip_existing_cache=True, redo_cache=False, num_proc=num_proc)
+    prepare_safetensors(dataset_path=dataset_path, safetensors_path=safetensors_path, splits=['train', 'val', 'test', 'external'], skip_existing_cache=True, redo_cache=False, num_proc=num_proc)
