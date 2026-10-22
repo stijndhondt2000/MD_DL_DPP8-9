@@ -12,7 +12,7 @@ if __name__ == "__main__":
             "dropout_rate": 0.5
         },
         batch_size=4096,
-        time_limit= 10 * 60,  # 10 minutes
+        time_limit=24 * 5 * 60,  # 24 hours
         max_nr_epochs=100,
         dataset_size=1.0,  # Use the full dataset
         learning_rate = 1e-3,
