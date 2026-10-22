@@ -4,7 +4,9 @@ from concurrent.futures import ProcessPoolExecutor, FIRST_COMPLETED, wait
 
 from src.infrastructure.dotenvManager import dotenvManager
 from src.training.batch_preprocessing import TARGET_PIXELS
-
+from pathlib import Path
+import pyarrow as pa
+import pyarrow.ipc as ipc
 from src.training.LabelEncoder import LabelEncoder
 from src.data.data_loading.SafetensorsDataset import ShardedSafetensorsDataset
 import datasets
@@ -498,9 +500,9 @@ def _is_map_worker_crash_error(exc: BaseException) -> bool:
 
     return False
 
-def prepare_safetensors(splits=["train", "validation", "test", "unique_test_runs"], \
+def prepare_safetensors(splits=["train", "val", "test", "unique_test_runs"], \
                         initial_batch_size=1024, skip_existing_cache=True,dataset_path="/project_antwerp/dataset/temp/streaming_pdb_dataset/",\
-                        redo_cache=False, safetensors_path=None):
+                        redo_cache=False, safetensors_path=None, num_proc=None):
     # This is the top-level orchestration routine: download the requested splits,
     # normalize them into fixed-size tensors, and persist the result as sharded
     # safetensors on disk.
@@ -511,7 +513,10 @@ def prepare_safetensors(splits=["train", "validation", "test", "unique_test_runs
     # it, the retry loop below reduces the batch size automatically.
     batch_size = initial_batch_size  # Start with a larger batch size for the map operation.
     # Use the configured CPU count for parallel packing/saving work.
-    num_workers = calculate_num_cpus() 
+    if num_proc is not None:
+        num_workers = num_proc
+    else:
+        num_workers = calculate_num_cpus() 
     dotenv_manager = dotenvManager()
     # Build a stable cache namespace so repeated runs can reuse or invalidate the
     # same disk locations in a predictable way.
@@ -579,7 +584,7 @@ def prepare_safetensors(splits=["train", "validation", "test", "unique_test_runs
                     dataset_dict, 
                     split, 
                     cache_path=safetensors_filepath,
-                    shard_size=250,  # Adjust based on your memory
+                    shard_size=1000,  # Adjust based on your memory
                     total_nr_workers=num_workers,
                 )
                 break
@@ -602,14 +607,34 @@ def prepare_safetensors(splits=["train", "validation", "test", "unique_test_runs
 
 
 if __name__ == "__main__":
-    dataset_path =  dotenvManager().get_dataset_directory()
+    dotenv_manager = dotenvManager()
+    dataset_path = Path(dotenv_manager.get_dataset_directory())
     logging.basicConfig(level=logging.DEBUG)
+
+    arrow_files = sorted(dataset_path.rglob("*.arrow"))
+    print(f"Found {len(arrow_files)} Arrow files")
+    print("Checking integrity of Arrow files...")
+    for i, path in enumerate(arrow_files, 1):
+        try:
+            with pa.memory_map(str(path), "r") as source:
+                reader = ipc.open_stream(source)
+                for _ in reader:
+                    pass
+        except Exception as e:
+            print(f"\nFAILED: {path}")
+            print(f"  Size: {path.stat().st_size:,} bytes")
+            print(f"  Error: {e}")
+
+        if i % 10 == 0:
+            print(f"Checked {i}/{len(arrow_files)} files")
+
+    print("Finished checking Arrow files.")
 
     try:
         # Allow the module to be executed directly for local preprocessing runs
         # without needing a separate wrapper script.
         prepare_safetensors(
-            splits=["train", "validation", "test", "unique_test_runs"],
+            splits=["train", "val", "test", "unique_test_runs"],
             initial_batch_size=2048,
             skip_existing_cache=False,
             dataset_path=dataset_path,
