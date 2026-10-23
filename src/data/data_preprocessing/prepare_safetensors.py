@@ -25,7 +25,7 @@ import threading
 import sys
 label_encoder = LabelEncoder()
 import os
-from huggingface_hub import constants
+from huggingface_hub import constants, config
 # A global event is used so the SIGUSR1 handler can request a graceful shutdown
 # from anywhere in the preprocessing pipeline without raising immediately in the
 # signal handler itself.
@@ -204,9 +204,11 @@ def print_huggingface_cache_info():
 
     print("=== Hugging Face cache configuration ===")
     print("HF_HOME:", os.environ.get("HF_HOME"))
+    print("HF_DATASETS_CACHE env:", os.environ.get("HF_DATASETS_CACHE"))
     print("HF_HUB_CACHE env:", os.environ.get("HF_HUB_CACHE"))
 
     print("\n=== Effective runtime paths ===")
+    print("Datasets cache:", config.HF_DATASETS_CACHE)
     print("Hub cache:", constants.HF_HUB_CACHE)
     print("Hub home:", constants.HF_HOME)
 
@@ -341,6 +343,7 @@ def _save_split_as_safetensors_memory_efficient(dataset_dict, split, cache_path,
     # chunks directly without receiving a serialized copy of the whole split.
     global _WORKER_DATASET_SPLIT
     _WORKER_DATASET_SPLIT = dataset_dict[split]
+    print(f"Worker dataset split exposed for {split} with {len(_WORKER_DATASET_SPLIT)} samples")
     for shard_idx in range(n_shards):
         _raise_if_stop_requested(f"split {split} shard loop")
         start = shard_idx * shard_size
