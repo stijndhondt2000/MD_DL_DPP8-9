@@ -515,7 +515,6 @@ def prepare_safetensors(splits=["train", "val", "test", "external"], \
     # Build a stable cache namespace so repeated runs can reuse or invalidate the
     # same disk locations in a predictable way.
     safetensors_filepath = dotenv_manager.get_safetensors_directory()
-    arrow_filepath = dotenv_manager.get_dataset_directory()
     # Rename columns to the schema expected by the packing and safetensors-saving
     # steps. ``coordinates`` becomes ``data`` and ``binding_type`` becomes labels.
     dataset_dict: datasets.DatasetDict = dataset_dict.rename_columns({'coordinates': 'data', 'binding_type': 'labels'})
@@ -567,7 +566,7 @@ def prepare_safetensors(splits=["train", "val", "test", "external"], \
                     dataset_dict, 
                     split, 
                     cache_path=safetensors_filepath,
-                    shard_size=4096,  # Adjust based on your memory
+                    shard_size=4096 * 10,  # Adjust based on your memory
                     total_nr_workers=num_workers,
                 )
                 break
