@@ -588,15 +588,12 @@ def prepare_safetensors(splits=["train", "val", "test", "external"], \
                 break
             except Exception as e:
                 logging.error(f"Error during saving safetensors for {split} split: {e}")
-                if (_is_host_oom_error(e) or _is_map_worker_crash_error(e)) and num_workers > 1:
+                if (_is_host_oom_error(e) or _is_map_worker_crash_error(e)) and shard_size > 1:
                     # If saving fails because the process pool is too aggressive, back
-                    # off by halving the worker count and try again.
-                    logging.info(
-                        f"Worker failure during safetensors saving for {split} with {num_workers} workers. "
-                        "Reducing workers and retrying..."
-                    )
-                    num_workers = max(1, num_workers // 2)
-                    logging.info(f"\tNew number of workers: {num_workers}")
+                    # off by halving the shard size
+                    logging.error(f"Host-memory OOM during safetensors save for {split} split. Reducing shard size and retrying...")
+                    shard_size = max(1, (3*shard_size) // 4)
+                    logging.error(f"\tNew shard size: {shard_size}")
                     continue
                 else:
                     raise
