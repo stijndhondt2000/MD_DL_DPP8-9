@@ -384,7 +384,9 @@ def _save_split_as_safetensors_memory_efficient(dataset_dict, split, cache_path,
         'shard_size': shard_size,
         'split': split
     }
-    torch.save(metadata, f"{cache_path}/{split}_metadata.pt")
+    save_path = os.path.join(cache_path, f"{split}_metadata.pt")
+    logging.info(f"Saving metadata for {split} split to {save_path}")
+    torch.save(metadata, save_path)
     
     return ShardedSafetensorsDataset(cache_path, split)
 def _encode_and_pack_batch(batch):

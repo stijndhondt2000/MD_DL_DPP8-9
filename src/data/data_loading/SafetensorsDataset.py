@@ -1,5 +1,7 @@
 """Lazy PyTorch datasets backed by single or sharded safetensors files."""
 
+import os
+
 from safetensors import safe_open
 import torch
 
@@ -52,7 +54,8 @@ class ShardedSafetensorsDataset(torch.utils.data.Dataset):
             raise ValueError(f"fraction must be in (0, 1], got {fraction}")
 
         # Load metadata
-        metadata = torch.load(f"{cache_path}/{split}_metadata.pt")
+        metadata_path = os.path.join(cache_path, f"{split}_metadata.pt")
+        metadata = torch.load(metadata_path)
         total_samples = metadata['total_samples']
         self.total_samples = min(total_samples, max(1, int(total_samples * fraction)))
         self.n_shards = metadata['n_shards']

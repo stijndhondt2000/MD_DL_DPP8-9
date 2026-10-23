@@ -34,11 +34,11 @@ def initialize_dataloaders(config: TrainingConfig, dotenv_manager: dotenvManager
     compatibility with older loader implementations.
 
     Returns:
-        Mapping from split names such as ``train`` and ``validation`` to
+        Mapping from split names such as ``train`` and ``val`` to
         configured ``torch.utils.data.DataLoader`` instances.
     """
     if splits is None:
-        splits = ['train', 'validation', 'test']
+        splits = ['train', 'val', 'test']
     if dotenv_manager is None:
         dotenv_manager = dotenvManager()
 
