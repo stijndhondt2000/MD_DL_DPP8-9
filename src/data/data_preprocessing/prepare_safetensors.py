@@ -204,11 +204,9 @@ def print_huggingface_cache_info():
 
     print("=== Hugging Face cache configuration ===")
     print("HF_HOME:", os.environ.get("HF_HOME"))
-    print("HF_DATASETS_CACHE env:", os.environ.get("HF_DATASETS_CACHE"))
     print("HF_HUB_CACHE env:", os.environ.get("HF_HUB_CACHE"))
 
     print("\n=== Effective runtime paths ===")
-    print("Datasets cache:", constants.HF_DATASETS_CACHE)
     print("Hub cache:", constants.HF_HUB_CACHE)
     print("Hub home:", constants.HF_HOME)
 
