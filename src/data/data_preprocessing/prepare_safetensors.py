@@ -57,6 +57,16 @@ signal.signal(signal.SIGUSR1, handle_sigusr1)
 # the entire dataset into every child process.
 _WORKER_DATASET_SPLIT = None
 
+
+def _initialize_worker_dataset_split(dataset_split):
+    """Initialize the dataset cache for ProcessPoolExecutor workers.
+
+    Relying only on the module global works with ``fork`` but leaves the global
+    as ``None`` when workers are started with ``spawn``.
+    """
+    global _WORKER_DATASET_SPLIT
+    _WORKER_DATASET_SPLIT = dataset_split
+
 def _write_safetensor_shard_from_worker_split(shard_idx, n_shards, start, end, shard_path, num_workers=1):
     """Materialize and write one shard inside a subprocess worker.
 
@@ -81,7 +91,11 @@ def _write_safetensor_shard_from_worker_split(shard_idx, n_shards, start, end, s
 
     # Each chunk is sent to a separate process so the expensive dataset slicing
     # and numpy conversion can overlap across CPU cores.
-    with ProcessPoolExecutor(max_workers=num_workers) as executor:
+    with ProcessPoolExecutor(
+        max_workers=num_workers,
+        initializer=_initialize_worker_dataset_split,
+        initargs=(_WORKER_DATASET_SPLIT,),
+    ) as executor:
         futures = []
         for chunk_start, chunk_end in chunks:
             _raise_if_stop_requested(f"shard {shard_idx + 1}/{n_shards} chunk scheduling")
@@ -336,7 +350,6 @@ def _save_split_as_safetensors_memory_efficient(dataset_dict, split, cache_path,
 
     logging.debug(f"Total available workers: {total_nr_workers}") 
 
-    _raise_if_stop_requested(f"split {split} pre-save")
     # Expose the current split to worker subprocesses so they can materialize
     # chunks directly without receiving a serialized copy of the whole split.
     global _WORKER_DATASET_SPLIT
@@ -565,6 +578,7 @@ def prepare_safetensors(splits=["train", "val", "test", "unique_test_runs"], \
             try:
                 # Convert the Arrow-cached split into sharded safetensors using the
                 # same worker-aware path above.
+                print(dataset_dict[split], flush=True)
                 _save_split_as_safetensors_memory_efficient(
                     dataset_dict, 
                     split, 
