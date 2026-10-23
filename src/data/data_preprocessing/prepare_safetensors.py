@@ -494,7 +494,7 @@ def _is_map_worker_crash_error(exc: BaseException) -> bool:
 
     return False
 
-def prepare_safetensors(splits=["train", "val", "test", "unique_test_runs"], \
+def prepare_safetensors(splits=["train", "val", "test", "external"], \
                         initial_batch_size=1024, skip_existing_cache=True,dataset_path="/project_antwerp/dataset/temp/streaming_pdb_dataset/",\
                         redo_cache=False, safetensors_path=None, num_proc=None):
     # This is the top-level orchestration routine: download the requested splits,
@@ -567,7 +567,7 @@ def prepare_safetensors(splits=["train", "val", "test", "unique_test_runs"], \
                     dataset_dict, 
                     split, 
                     cache_path=safetensors_filepath,
-                    shard_size=512,  # Adjust based on your memory
+                    shard_size=4096,  # Adjust based on your memory
                     total_nr_workers=num_workers,
                 )
                 break
@@ -617,7 +617,7 @@ if __name__ == "__main__":
         # Allow the module to be executed directly for local preprocessing runs
         # without needing a separate wrapper script.
         prepare_safetensors(
-            splits=["train", "val", "test", "unique_test_runs"],
+            splits=["train", "val", "test", "external"],
             initial_batch_size=2048,
             skip_existing_cache=False,
             dataset_path=dataset_path,
