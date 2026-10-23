@@ -5,6 +5,7 @@ import time
 import threading
 from contextlib import nullcontext
 import datasets
+from src.data.data_preprocessing.trajectory_split import split_trajectories
 
 import torch
 from src.training.Metrics import Metrics
@@ -95,23 +96,9 @@ def clear_cache(dataset_dir):
 
 
 def train_val_test_split(dataset, train_fraction=0.7, val_fraction=0.15, seed=42):
-    """Split a dataset into shuffled ``train``, ``val``, and ``test`` subsets."""
-    if train_fraction + val_fraction >= 1.0:
-        raise ValueError("Train and validation fractions must sum to less than 1.0")
-
-    # First split into train and temp (val + test)
-    temp_fraction = 1.0 - train_fraction
-    train_val_test = dataset.train_test_split(test_size=temp_fraction, seed=seed, shuffle=True)
-    train_set = train_val_test['train']
-    temp_set = train_val_test['test']
-
-    # Now split temp into validation and test
-    test_fraction = 1.0 - (val_fraction / temp_fraction)
-    val_test = temp_set.train_test_split(test_size=test_fraction, seed=seed, shuffle=True)
-    val_set = val_test['train']
-    test_set = val_test['test']
-
-    return {"train": train_set, "val": val_set,"test": test_set}
+    """Split whole trajectories; retain each molecular condition in every set."""
+    splits, _ = split_trajectories(dataset, train_fraction, val_fraction, seed)
+    return splits
 
 def training_phase(model, trainloader, optimizer, criterion, device):
     """Train over a finite dataloader and return aggregate accuracy/loss."""

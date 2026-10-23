@@ -34,4 +34,4 @@ if __name__ == "__main__":
         time_limit=3600*3.6,  # 3.6 hours
     )
 
-    train_model(config_transformerpp, "LongSequenceAtomTransformer_Randomsplit_Dataset")
+    train_model(config_transformerpp, "LongSequenceAtomTransformer_TrajectoryHoldout_Dataset")

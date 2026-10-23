@@ -63,10 +63,17 @@ def initialize_dataloaders(config: TrainingConfig, dotenv_manager: dotenvManager
         "prefetch_factor": 4 if dataloader_workers > 0 else None,
     }
     dataloader_dict = {}
+    development_manifest_id = None
     for split in splits:
         logging.debug(f"\t\tLoading cached safetensors for {split} split from {safetensors_directory}...")
         logging.debug(f"Creating SafetensorsDataset for {split} split with batch size {config.batch_size} and num_workers {dataloader_workers}, fraction {config.dataset_size}...")
-        ds = ShardedSafetensorsDataset(safetensors_directory, split, fraction=config.dataset_size)
+        # Preprocessing writes "val"; the training API calls it "validation".
+        cache_split = "val" if split == "validation" else split
+        ds = ShardedSafetensorsDataset(safetensors_directory, cache_split, fraction=config.dataset_size)
+        if cache_split in ("train", "val", "test"):
+            if development_manifest_id is not None and ds.split_manifest_id != development_manifest_id:
+                raise ValueError("Development caches come from different split assignments; rebuild all three splits.")
+            development_manifest_id = ds.split_manifest_id
         logging.info(f"\t\tCreating dataloader for {split} split with batch size {config.batch_size} and num_workers {dataloader_workers}...")
         dataloader = torch.utils.data.DataLoader(dataset=ds, **dataloader_args)
         dataloader_dict[split] = dataloader

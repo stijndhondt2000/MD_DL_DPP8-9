@@ -2,6 +2,7 @@
 
 from safetensors import safe_open
 import torch
+from src.data.data_preprocessing.trajectory_split import validate_development_cache
 
 class SafetensorsDataset(torch.utils.data.Dataset):
     """Load ``data``, ``labels``, and ``num_atoms`` from one safetensors file.
@@ -53,6 +54,9 @@ class ShardedSafetensorsDataset(torch.utils.data.Dataset):
 
         # Load metadata
         metadata = torch.load(f"{cache_path}/{split}_metadata.pt")
+        if split in ("train", "val", "validation", "test"):
+            validate_development_cache(metadata)
+        self.split_manifest_id = metadata.get("split_manifest_id")
         total_samples = metadata['total_samples']
         self.total_samples = min(total_samples, max(1, int(total_samples * fraction)))
         self.n_shards = metadata['n_shards']
