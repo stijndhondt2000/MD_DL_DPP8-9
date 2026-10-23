@@ -154,7 +154,7 @@ def train_model(config: TrainingConfig, model_name: str):
                     model=model,
                     model_folder=run_dir,
                     trainloader=dataloaders["train"],
-                    validationloader=dataloaders["validation"],
+                    validationloader=dataloaders["val"],
                     optimizer=optimizer,
                     criterion=criterion,
                     max_epochs=config.max_nr_epochs,
