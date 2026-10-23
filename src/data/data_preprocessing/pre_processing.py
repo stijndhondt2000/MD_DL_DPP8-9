@@ -1,10 +1,13 @@
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datasets import Dataset, NamedSplit, concatenate_datasets, load_from_disk
 import os
+import json
 from pathlib import Path
 
 
-from src.training.utils import train_val_test_split
+from src.data.data_preprocessing.trajectory_split import (
+    MANIFEST_FILENAME, SPLIT_NAMES, split_trajectories,
+)
 from src.utils.molecular_parsing import parse_filename
 from src.data.data_preprocessing.utils import extract_coordinates, parse_pdb_streaming
 from src.infrastructure.dotenvManager import dotenvManager
@@ -155,11 +158,11 @@ def generate_external_dataset_from_tars(regenerate=False, num_proc=32, skip_exis
 
 
 def generate_development_dataset_from_tars(regenerate=False, num_proc=32, skip_existing=True, remove_temp_dataset=True):
-    """Build the final train/validation/test dataset from all TAR shards.
+    """Build train/val/test datasets with disjoint trajectory/replica identities.
 
-    The function first materializes per-trajectory datasets on disk, then reloads
-    them, concatenates them into one large dataset, shuffles the rows, and finally
-    applies the project-specific train/val/test split.
+    Keep every molecular condition in all three partitions. Existing legacy or
+    changed splits require ``regenerate=True``; compatible outputs are reused
+    together, never independently. The manifest is written after all saves.
     """
     dotenv_manager = dotenvManager()
     # folder with tar files
@@ -181,25 +184,19 @@ def generate_development_dataset_from_tars(regenerate=False, num_proc=32, skip_e
     full_ds = []
     # Step 2: reload every shard and keep the partial datasets in memory long
     # enough to concatenate them into a single dataset object.
-    for last_child in os.listdir(temp_dataset_path):
+    for last_child in sorted(os.listdir(temp_dataset_path)):
         traj_path = os.path.join(temp_dataset_path, last_child)
 
         print(f"Loading dataset for traj: {last_child}...")
         partial_ds = load_from_disk(traj_path)
         full_ds.append(partial_ds)
 
-    # Merge all trajectory-level shards into one dataset before shuffling and
-    # splitting. This gives the training pipeline a single consistent dataset view.
+    # Concatenation preserves metadata; membership is assigned by trajectory.
     full_ds = concatenate_datasets(full_ds)
     print(f"✓ Full dataset loaded with {len(full_ds)} samples.")
 
-    # Step 3: shuffle once with a fixed seed so the downstream split is
-    # deterministic and not correlated with the ordering of the source TARs.
-    full_set = full_ds.shuffle(seed=42)
-
-    # Create the project splits using the shared helper so the split ratios stay
-    # aligned with the rest of the training codebase.
-    train_val_test = train_val_test_split(full_set, train_fraction=0.7, val_fraction=0.15, seed=42)
+    # Split whole replicas within each condition, then shuffle within each set.
+    train_val_test, manifest = split_trajectories(full_ds, train_fraction=0.7, val_fraction=0.15, seed=42)
     full_training_set = train_val_test['train']
     full_val_set = train_val_test['val']
     full_test_set = train_val_test['test']
@@ -208,8 +205,28 @@ def generate_development_dataset_from_tars(regenerate=False, num_proc=32, skip_e
     print(f"\tFinal training set size: {len(full_training_set)}")
     print(f"\tFinal validation set size: {len(full_val_set)}")
     print(f"\tFinal test set size: {len(full_test_set)}")
+    for name, details in manifest["splits"].items():
+        print(f"\t{name}: {details['trajectory_count']} complete trajectories")
+
+    manifest_path = Path(dataset_path) / MANIFEST_FILENAME
+    existing_splits = [
+        (Path(dataset_path) / name / "dataset_info.json").is_file()
+        for name in SPLIT_NAMES
+    ]
+    if not regenerate and (any(existing_splits) or manifest_path.exists()):
+        previous = json.loads(manifest_path.read_text()) if manifest_path.exists() else None
+        if all(existing_splits) and previous == manifest:
+            print("Compatible trajectory-held-out splits already exist; reusing all three.")
+            return
+        raise ValueError(
+            "Existing development splits are legacy, incomplete, or have different inputs. "
+            "Run the complete preprocessing pipeline with --regenerate-splits to replace "
+            "all three partitions and rebuild their safetensor caches."
+        )
 
     print("Saving final development datasets to disk...")
+    # An interrupted rebuild must not leave a manifest declaring it complete.
+    manifest_path.unlink(missing_ok=True)
 
     # Persist each split separately so training scripts can load only the subset
     # they need without reading the entire corpus every time.
@@ -217,11 +234,8 @@ def generate_development_dataset_from_tars(regenerate=False, num_proc=32, skip_e
         set_path = os.path.join(dataset_path, split_name)
         os.makedirs(set_path, exist_ok=True)
 
-        if not regenerate and os.path.exists(set_path):
-            if "dataset_info.json" in os.listdir(set_path):
-                print(f"{split_name.capitalize()} dataset already exists at {set_path}. Skipping regeneration as regenerate is False.")
-                continue
         dset.save_to_disk(set_path, max_shard_size="4GB", num_proc=num_proc)
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
 
     # remove the temporary dataset cache to free up disk space after the final splits are saved.
     if os.path.exists(temp_dataset_path) and remove_temp_dataset:

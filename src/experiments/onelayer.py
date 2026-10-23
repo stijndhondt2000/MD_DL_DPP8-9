@@ -26,4 +26,4 @@ if __name__ == "__main__":
         transform_batch_size=64,
     )
 
-    train_model(config_dcnn, "OneLayerNet_Randomsplit_Dataset")
+    train_model(config_dcnn, "OneLayerNet_TrajectoryHoldout_Dataset")

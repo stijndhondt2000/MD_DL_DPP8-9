@@ -10,6 +10,9 @@ import pyarrow as pa
 import pyarrow.ipc as ipc
 from src.training.LabelEncoder import LabelEncoder
 from src.data.data_loading.SafetensorsDataset import ShardedSafetensorsDataset
+from src.data.data_preprocessing.trajectory_split import (
+    SPLIT_NAMES, cache_provenance, read_split_manifest,
+)
 import traceback
 import datasets
 # The label encoder is shared by the batch packing step so that string labels are
@@ -303,7 +306,8 @@ def calculate_sample_size(sample, prefix="sample"):
     size = len(str(sample).encode("utf-8"))  # Rough estimate for scalar/object data.
     return size
 
-def _save_split_as_safetensors_memory_efficient(dataset_dict, split, cache_path, shard_size=5000, total_nr_workers=1):
+def _save_split_as_safetensors_memory_efficient(dataset_dict, split, cache_path, shard_size=5000, total_nr_workers=1,
+                                               split_manifest=None, reuse_existing=True):
     """
     Memory-efficient saving with sharding.
     
@@ -319,6 +323,24 @@ def _save_split_as_safetensors_memory_efficient(dataset_dict, split, cache_path,
     # Convert the requested shard size into a shard count rounded up to cover
     # the tail of the split.
     n_shards = (total_samples + shard_size - 1) // shard_size
+    metadata = {
+        'total_samples': total_samples,
+        'n_shards': n_shards,
+        'shard_size': shard_size,
+        'split': split,
+        **cache_provenance(dataset_dict[split]._fingerprint, split_manifest),
+    }
+    metadata_path = Path(cache_path) / f"{split}_metadata.pt"
+    matching_cache = False
+    if reuse_existing and metadata_path.is_file():
+        try:
+            matching_cache = torch.load(metadata_path) == metadata
+        except Exception as exc:
+            logging.warning(f"Cannot read cache provenance for {split}; rewriting shards: {exc}")
+    if not matching_cache:
+        logging.info(f"Rebuilding {split} shards: source, split assignment, or shard layout changed.")
+    # Only a fully completed write may advertise usable cache metadata.
+    metadata_path.unlink(missing_ok=True)
     logging.info(f"Creating {n_shards} shards of ~{shard_size} samples each")
     # Sample one row to estimate the eventual shard size and log a sanity check.
     sample = dataset_dict[split][0] # Get the first sample to estimate size
@@ -348,7 +370,7 @@ def _save_split_as_safetensors_memory_efficient(dataset_dict, split, cache_path,
         logging.info(f"Processing shard {shard_idx+1}/{n_shards} (samples {start}-{end}) for saving)")
 
         shard_path = f"{cache_path}/{split}_shard_{shard_idx:04d}_of_{n_shards:04d}.safetensors"
-        if os.path.exists(shard_path):
+        if matching_cache and os.path.exists(shard_path):
             # Verify integrity before skipping: an incomplete file can cause deserialization errors.
             try:
                 # Opening the shard confirms that the file is at least readable as a
@@ -378,13 +400,7 @@ def _save_split_as_safetensors_memory_efficient(dataset_dict, split, cache_path,
     
     # Store a tiny metadata file next to the shards so downstream code can inspect
     # the split without scanning every safetensors file.
-    metadata = {
-        'total_samples': total_samples,
-        'n_shards': n_shards,
-        'shard_size': shard_size,
-        'split': split
-    }
-    torch.save(metadata, f"{cache_path}/{split}_metadata.pt")
+    torch.save(metadata, metadata_path)
     
     return ShardedSafetensorsDataset(cache_path, split)
 def _encode_and_pack_batch(batch):
@@ -507,16 +523,17 @@ def prepare_safetensors(splits=["train", "val", "test", "external"], \
     Parameters:
     - splits: List of dataset splits to process (default: ["train", "val", "test", "external"]).
     - initial_batch_size: Initial batch size for the map operation (default: 1024).
-    - skip_existing_cache: If True, skip processing splits that already have cached safetensors (default: True).
+    - skip_existing_cache: If True, reuse readable shards only when their source and split provenance match (default: True).
     - dataset_path: Path to the dataset directory (default: "/project_antwerp/dataset/temp/streaming_pdb_dataset/").
     - redo_cache: If True, force reprocessing of splits even if cached safetensors exist (default: False).
-    - safetensors_path: Optional path to store the resulting safetensors (default: None, uses the dataset path).
+    - safetensors_path: Optional output path (default: None, uses SAFETENSOR_DIR).
     - num_proc: Number of processes to use for parallel processing (default: None, uses all available CPUs).
     - shard_size: Number of samples per shard when saving as safetensors (default: 4096). Adjust based on available memory.
     """
     # This is the top-level orchestration routine: download the requested splits,
     # normalize them into fixed-size tensors, and persist the result as sharded
     # safetensors on disk.
+    development_manifest = read_split_manifest(dataset_path) if any(split in SPLIT_NAMES for split in splits) else None
     dataset_dict = load_from_disk(dataset_path=dataset_path, splits=splits)
     logging.info(f"Downloaded dataset with splits: {list(dataset_dict.keys())}. Sample keys: {dataset_dict[splits[0]].column_names}")
     
@@ -528,10 +545,9 @@ def prepare_safetensors(splits=["train", "val", "test", "external"], \
         num_workers = num_proc
     else:
         num_workers = calculate_num_cpus() 
-    dotenv_manager = dotenvManager()
     # Build a stable cache namespace so repeated runs can reuse or invalidate the
     # same disk locations in a predictable way.
-    safetensors_filepath = dotenv_manager.get_safetensors_directory()
+    safetensors_filepath = safetensors_path or dotenvManager().get_safetensors_directory()
     # Rename columns to the schema expected by the packing and safetensors-saving
     # steps. ``coordinates`` becomes ``data`` and ``binding_type`` becomes labels.
     dataset_dict: datasets.DatasetDict = dataset_dict.rename_columns({'coordinates': 'data', 'binding_type': 'labels'})
@@ -585,6 +601,8 @@ def prepare_safetensors(splits=["train", "val", "test", "external"], \
                     cache_path=safetensors_filepath,
                     shard_size=shard_size,  # Adjust based on your memory
                     total_nr_workers=num_workers,
+                    split_manifest=development_manifest if split in SPLIT_NAMES else None,
+                    reuse_existing=skip_existing_cache and not redo_cache,
                 )
                 break
             except Exception as e:
@@ -642,4 +660,3 @@ if __name__ == "__main__":
         exit_code = exc.code if isinstance(exc.code, int) else 123
         logging.warning(f"Graceful stop acknowledged. Exiting with code {exit_code}.")
         sys.exit(exit_code)
-    
