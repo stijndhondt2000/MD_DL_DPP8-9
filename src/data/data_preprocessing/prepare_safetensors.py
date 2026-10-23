@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 load_dotenv() 
 from concurrent.futures import ProcessPoolExecutor, FIRST_COMPLETED, wait
+import multiprocessing
 
 from src.infrastructure.dotenvManager import dotenvManager
 from src.training.batch_preprocessing import TARGET_PIXELS
@@ -58,15 +59,6 @@ signal.signal(signal.SIGUSR1, handle_sigusr1)
 _WORKER_DATASET_SPLIT = None
 
 
-def _initialize_worker_dataset_split(dataset_split):
-    """Initialize the dataset cache for ProcessPoolExecutor workers.
-
-    Relying only on the module global works with ``fork`` but leaves the global
-    as ``None`` when workers are started with ``spawn``.
-    """
-    global _WORKER_DATASET_SPLIT
-    _WORKER_DATASET_SPLIT = dataset_split
-
 def _write_safetensor_shard_from_worker_split(shard_idx, n_shards, start, end, shard_path, num_workers=1):
     """Materialize and write one shard inside a subprocess worker.
 
@@ -93,8 +85,8 @@ def _write_safetensor_shard_from_worker_split(shard_idx, n_shards, start, end, s
     # and numpy conversion can overlap across CPU cores.
     with ProcessPoolExecutor(
         max_workers=num_workers,
-        initializer=_initialize_worker_dataset_split,
-        initargs=(_WORKER_DATASET_SPLIT,),
+        mp_context=multiprocessing.get_context("fork"),
+
     ) as executor:
         futures = []
         for chunk_start, chunk_end in chunks:
@@ -202,15 +194,6 @@ def _materialize_shard_absolute(start, end):
     return data_np, labels_np, num_atoms_np
 
 
-def _materialize_shard_arrays(dataset_split, start, end):
-    """Read one shard slice once, then extract arrays for all required fields."""
-    # This helper performs the same conversion as the worker version, but takes
-    # the dataset slice explicitly instead of using the global worker cache.
-    shard_batch = dataset_split[start:end]
-    data_np = np.ascontiguousarray(np.asarray(shard_batch['data']))
-    labels_np = np.asarray(shard_batch['labels'])
-    num_atoms_np = np.asarray(shard_batch['num_atoms'])
-    return data_np, labels_np, num_atoms_np
 
 
 def print_huggingface_cache_info():
@@ -579,6 +562,7 @@ def prepare_safetensors(splits=["train", "val", "test", "unique_test_runs"], \
                 # Convert the Arrow-cached split into sharded safetensors using the
                 # same worker-aware path above.
                 print(dataset_dict[split], flush=True)
+                print(f"Type of dataset for {split}: {type(dataset_dict[split])}", flush=True)
                 _save_split_as_safetensors_memory_efficient(
                     dataset_dict, 
                     split, 
