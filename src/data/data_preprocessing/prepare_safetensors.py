@@ -496,7 +496,23 @@ def _is_map_worker_crash_error(exc: BaseException) -> bool:
 
 def prepare_safetensors(splits=["train", "val", "test", "external"], \
                         initial_batch_size=1024, skip_existing_cache=True,dataset_path="/project_antwerp/dataset/temp/streaming_pdb_dataset/",\
-                        redo_cache=False, safetensors_path=None, num_proc=None):
+                        redo_cache=False, safetensors_path=None, num_proc=None, shard_size=4096):
+    """
+    Prepare the dataset for model training by converting it into safetensors format.
+    This function orchestrates the entire process of loading the requested splits,
+    normalizing them into fixed-size tensors, and persisting the result as sharded
+    safetensors on disk.
+
+    Parameters:
+    - splits: List of dataset splits to process (default: ["train", "val", "test", "external"]).
+    - initial_batch_size: Initial batch size for the map operation (default: 1024).
+    - skip_existing_cache: If True, skip processing splits that already have cached safetensors (default: True).
+    - dataset_path: Path to the dataset directory (default: "/project_antwerp/dataset/temp/streaming_pdb_dataset/").
+    - redo_cache: If True, force reprocessing of splits even if cached safetensors exist (default: False).
+    - safetensors_path: Optional path to store the resulting safetensors (default: None, uses the dataset path).
+    - num_proc: Number of processes to use for parallel processing (default: None, uses all available CPUs).
+    - shard_size: Number of samples per shard when saving as safetensors (default: 4096). Adjust based on available memory.
+    """
     # This is the top-level orchestration routine: download the requested splits,
     # normalize them into fixed-size tensors, and persist the result as sharded
     # safetensors on disk.
@@ -566,7 +582,7 @@ def prepare_safetensors(splits=["train", "val", "test", "external"], \
                     dataset_dict, 
                     split, 
                     cache_path=safetensors_filepath,
-                    shard_size=4096 * 10,  # Adjust based on your memory
+                    shard_size=shard_size,  # Adjust based on your memory
                     total_nr_workers=num_workers,
                 )
                 break
