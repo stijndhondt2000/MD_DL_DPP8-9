@@ -19,9 +19,16 @@ def _is_cuda_oom_error(exc: BaseException) -> bool:
     """Return True when exception indicates a CUDA OOM condition."""
     if isinstance(exc, torch.OutOfMemoryError):
         return True
-    msg = str(exc).lower()
-    return "cuda out of memory" in msg or "cudnn_status_alloc_failed" in msg
 
+    msg = str(exc).lower()
+    return any(
+        pattern in msg
+        for pattern in (
+            "cuda out of memory",
+            "cudnn_status_alloc_failed",
+            "cublas_status_alloc_failed",
+        )
+    )
 
 def _cleanup_cuda_memory():
     """Release cached CUDA memory between retries."""
