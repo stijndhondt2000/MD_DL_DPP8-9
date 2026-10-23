@@ -25,7 +25,7 @@ import threading
 import sys
 label_encoder = LabelEncoder()
 import os
-from huggingface_hub import constants, config
+from huggingface_hub import constants
 # A global event is used so the SIGUSR1 handler can request a graceful shutdown
 # from anywhere in the preprocessing pipeline without raising immediately in the
 # signal handler itself.
