@@ -32,4 +32,4 @@ if __name__ == "__main__":
 
  
     # Step 3: Prepare the dataset for model training by converting it into safetensors format
-    prepare_safetensors(dataset_path=dataset_path, safetensors_path=safetensors_path, splits=['train', 'val', 'test', 'external'], skip_existing_cache=True, redo_cache=False, num_proc=num_proc, shard_size=4096 * 10)  # Adjust shard size based on available memory
+    prepare_safetensors(dataset_path=dataset_path, safetensors_path=safetensors_path, splits=['train', 'val', 'test', 'external'], skip_existing_cache=True, redo_cache=False, num_proc=num_proc, shard_size=1024 * 4)  # Adjust shard size based on available memory

@@ -10,6 +10,7 @@ import pyarrow as pa
 import pyarrow.ipc as ipc
 from src.training.LabelEncoder import LabelEncoder
 from src.data.data_loading.SafetensorsDataset import ShardedSafetensorsDataset
+import traceback
 import datasets
 # The label encoder is shared by the batch packing step so that string labels are
 # converted to stable numeric IDs before being written to disk.
@@ -588,6 +589,8 @@ def prepare_safetensors(splits=["train", "val", "test", "external"], \
                 break
             except Exception as e:
                 logging.error(f"Error during saving safetensors for {split} split: {e}")
+                # show the traceback for debugging
+                traceback.print_exc()
                 if (_is_host_oom_error(e) or _is_map_worker_crash_error(e)) and shard_size > 1:
                     # If saving fails because the process pool is too aggressive, back
                     # off by halving the shard size
