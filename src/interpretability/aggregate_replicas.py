@@ -1,4 +1,6 @@
 from pathlib import Path
+
+from dotenv import load_dotenv
 from src.interpretability.interpretability_executer import execute_interpretability
 from src.utils.utils import ligant_to_class
 import time
@@ -97,4 +99,15 @@ def count_significant_residues(input_folder: Path = Path("/home/stijn/Sam_ModelV
 
 
 if __name__ == "__main__":    
-    count_significant_residues()
+    load_dotenv()
+    root_input_dir = Path("/project_antwerp/dataset/decompressed_both_datasets_every1000/")
+    root_output_dir = Path(os.getenv("OUTPUT_DIR", default="/project_antwerp/MD_DL_DPP8-9/output/"))
+    interpretability_output_dir = root_output_dir / "interpretability"
+    all_frames_output_dir = interpretability_output_dir / "all_frames"
+    aggregated_replicas_output_dir = interpretability_output_dir / "aggregated_replicas"
+    count_significant_residues(
+        input_folder=all_frames_output_dir,
+        output_folder_root=aggregated_replicas_output_dir,
+        base_pdb_file_folder=root_input_dir,
+        methods=list(["saliency"])
+    )
