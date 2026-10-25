@@ -1,8 +1,9 @@
 scipy
-mdtraj
 matplotlib
 datasets
 safetensors
 python-dotenv
 fvcore
 scikit-learn
+biopython
+captum
