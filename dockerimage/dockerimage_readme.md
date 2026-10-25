@@ -29,7 +29,7 @@ Run these commands from the project root:
 cd ~/Documents/Projects/MD_DL_DPP8-9
 
 sudo docker build --no-cache \
-  -f ./dockerimage/dockerfile \
+  -f ./dockerimage/Dockerfile \
   -t ghcr.io/stijndhondt2000/dpp8-9-image:v{version_number} .
 ```
 
@@ -59,10 +59,10 @@ sudo docker run --rm --gpus all \
 
 ## 5. Log in to GHCR
 
-Authenticate with a GitHub Personal Access Token that has permission to publish packages.
+Authenticate with a GitHub Personal Access Token that has permission to publish packages.  
 
 ```bash
-sudo docker login ghcr.io -u stijndhondt2000
+sudo docker login ghcr.io -u {username}
 ```
 
 Enter the token when prompted for a password.
@@ -72,4 +72,10 @@ Enter the token when prompted for a password.
 ```bash
 sudo docker push ghcr.io/stijndhondt2000/dpp8-9-image:v{version_number}
 ```
+## 7. Add "latest" tag
+Point the latest tag to the new image and push the change.
+```bash
+sudo docker tag ghcr.io/stijndhondt2000/dpp8-9-image:v{version_number}   ghcr.io/stijndhondt2000/dpp8-9-image:latest
+sudo docker push ghcr.io/stijndhondt2000/dpp8-9-image:latest
 
+```
