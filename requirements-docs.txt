@@ -1,2 +1,0 @@
-# API documentation generated from Python docstrings.
-pdoc>=14,<16
