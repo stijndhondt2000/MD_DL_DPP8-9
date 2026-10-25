@@ -11,7 +11,6 @@ def count_significant_residues(input_folder: Path = Path("/home/stijn/Sam_ModelV
                             base_pdb_file_folder: Path = Path("/home/stijn/Sam_ModelVisualisation/output_interpretability_final/"),
                             methods: list[str] = ["saliency", "occlusion", "integrated_gradients"]):
                                                                                                                                                                                                                                                                             
-    models = None
     for dpp_dir in input_folder.iterdir():
         dpp = dpp_dir.stem
         # ligand

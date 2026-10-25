@@ -19,22 +19,22 @@ import matplotlib.pyplot as plt
 THRESHOLD = 0.5
 
 METHOD_ARGS = {
-    # "integrated_gradients": {"steps": 50},
-    # "occlusion": {
-    #     "patch_size": 1,
-    #     "perturbations_per_eval": 2048,
-    #     "shift_size": 1,
-    # },
+    "integrated_gradients": {"steps": 50},
+    "occlusion": {
+        "patch_size": 1,
+        "perturbations_per_eval": 2048,
+        "shift_size": 1,
+    },
     "saliency": {},
 }
 
 MODEL_CHECKPOINTS = {
-    # "DCNN": Path(
-    #     "/project_antwerp/MD_DL_DPP8-9/"
-    #     "output/models/CustomDenseNet_Randomsplit_Dataset/"
-    #     "20260323-202241/"
-    #     "CustomDenseNet_Randomsplit_Dataset.pth"
-    # ),
+    "DCNN": Path(
+        "/project_antwerp/MD_DL_DPP8-9/"
+        "output/models/CustomDenseNet_Randomsplit_Dataset/"
+        "20260323-202241/"
+        "CustomDenseNet_Randomsplit_Dataset.pth"
+    ),
     "SCNN": Path(
         "/project_antwerp/MD_DL_DPP8-9/"
         "output/models/SCNN/"

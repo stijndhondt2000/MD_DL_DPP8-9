@@ -81,7 +81,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 
-def main() -> None:
+def test_model() -> None:
 	load_dotenv()
 	args = _build_parser().parse_args()
 
@@ -125,6 +125,8 @@ def main() -> None:
 		device = torch.device(args.device)
 	if device.type == "cuda" and not torch.cuda.is_available():
 		raise RuntimeError("CUDA requested but is not available.")
+	
+	
 	model_class = _resolve_model_class(model_name)
 	model = load_model(
 		checkpoint_path,
@@ -162,5 +164,6 @@ def main() -> None:
 	logging.info(f"Testing complete. output saved to {args.output_dir}")
 
 
+
 if __name__ == "__main__":
-	main()
+	test_model()
