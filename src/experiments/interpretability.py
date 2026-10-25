@@ -13,7 +13,7 @@ from src.models.DCNN import DCNN
 from src.models.LongSequenceAtomTransformer import LongSequenceAtomTransformer
 from src.models.OneLayer import OneLayerNet
 from src.models.SCNN import SCNN
-from src.data.data_loading.HFDataloader import initialize_dataloaders, initialize_streaming_dataloader
+from src.data.data_loading.HFDataloader import initialize_dataloaders
 from src.training.LabelEncoder import LabelEncoder
 from src.interpretability.interpretability_utils import CaptumInterpreter
 from src.config.training_config import TrainingConfig

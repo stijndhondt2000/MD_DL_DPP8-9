@@ -10,7 +10,6 @@ from src.training.metric_functions import all_statistics
 import torch
 
 from src.config.training_config import TestConfig, TrainingConfig
-from src.training.training_setup import load_and_prepare_test
 from src.training.model_testing import plot_cm
 class ModelStatistics:
     """Collect evaluation, parameter-count, FLOP, and VRAM statistics for one model."""
@@ -103,7 +102,6 @@ if __name__ == "__main__":
         num_cpus=8
     )
     models = [dcnn, scnn, onelayer]
-    test_loader = load_and_prepare_test(test_config)
     model_stats_list = []
     for model_filepath, model_name, model_filename in models:
         model_stats = ModelStatistics(

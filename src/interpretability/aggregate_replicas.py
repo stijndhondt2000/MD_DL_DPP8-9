@@ -9,6 +9,7 @@ def count_significant_residues(input_folder: Path = Path("/home/stijn/Sam_ModelV
                             base_pdb_file_folder: Path = Path("/home/stijn/Sam_ModelVisualisation/output_interpretability_final/"),
                             methods: list[str] = ["saliency", "occlusion", "integrated_gradients"]):
                                                                                                                                                                                                                                                                             
+    models = None
     for dpp_dir in input_folder.iterdir():
         dpp = dpp_dir.stem
         # ligand
@@ -17,7 +18,9 @@ def count_significant_residues(input_folder: Path = Path("/home/stijn/Sam_ModelV
             for replica_dir in ligand_dir.iterdir():
                 residue_dir = {}
                 ligand = ligand_dir.name
-                for model in ["SCNN","DCNN"]:
+                models_dirs = replica_dir.iterdir() # get the names of the models
+                model_names = [model_dir.name for model_dir in models_dirs if model_dir.is_dir()]
+                for model in model_names:
                     residue_dir[model] = {}
                     for method in methods:
                         residue_dir[model][method] = {}
@@ -42,7 +45,7 @@ def count_significant_residues(input_folder: Path = Path("/home/stijn/Sam_ModelV
                                             if not residue_name in residue_dir[model][method].keys():
                                                 residue_dir[model][method][residue_name] = 0
                                             residue_dir[model][method][residue_name] += 1
-            for model in ["SCNN","DCNN"]:
+            for model in model_names:
                 for method, residue_name_dict in residue_dir[model].items():
                     max_counts = max(residue_name_dict.values())
                     for  residue_name in residue_name_dict.keys():

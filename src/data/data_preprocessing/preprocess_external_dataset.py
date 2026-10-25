@@ -7,7 +7,6 @@ from io import StringIO
 from pathlib import Path
 
 import numpy as np
-from Bio import PDB
 from datasets import Dataset, NamedSplit
 
 from src.utils.molecular_parsing import parse_filename
