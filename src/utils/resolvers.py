@@ -26,7 +26,7 @@ BATCH_PREPARATION_REGISTRY = {
 
 
 def _build_test_dataloader(config: TrainingConfig, splits=["test"]):
-	dataloaders = initialize_dataloaders(config, keep_all_columns=True, splits=splits)
+	dataloaders = initialize_dataloaders(config, splits=splits)
 	return dataloaders
 
 
