@@ -105,7 +105,6 @@ This project provides a Docker image for reproducible environments with PyTorch 
 
 ### Environment Setup
 - Ensure all necessary source code files are in the `src/` directory and importable.
-- The `setup_script.sh` can help automate environment setup.
 
 ### Quick Commands Reference
 - Run data preprocessing pipeline: `python3 -m src.data.data_preprocessing.complete_data_preprocessing_pipeline`
