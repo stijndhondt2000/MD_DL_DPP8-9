@@ -21,8 +21,6 @@ def init_logger(log_mode, model_dir, log_file):
     formatter = logging_module.Formatter("%(levelname)s: %(message)s")
 
     log_file_path = os.path.join(model_dir, log_file)
-    # create log file
-    os.makedirs(model_dir, exist_ok=True) 
     
 
     file_handler = logging_module.FileHandler(log_file_path, mode='w')
