@@ -18,7 +18,6 @@ def init_logger(log_mode, model_dir, log_file):
     _logger = logging_module.getLogger(_LOGGER_NAME)
     _logger.setLevel(log_mode)
 
-    os.makedirs(model_dir, exist_ok=True)
     formatter = logging_module.Formatter("%(levelname)s: %(message)s")
 
     log_file_path = os.path.join(model_dir, log_file)
@@ -33,7 +32,9 @@ def init_logger(log_mode, model_dir, log_file):
     _logger.addHandler(file_handler)
     _logger.addHandler(console_handler)
     _logger.propagate = False
-    
+
+
+    _logger.info(f"Logger initialized. Log file: {log_file_path}")
     return _logger
 
 def get_logger():
