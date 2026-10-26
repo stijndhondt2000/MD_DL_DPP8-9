@@ -1,5 +1,4 @@
-/bin/bash
-
+# !/bin/bash
 
 # call test(model) script for SCNN
 checkpoint_path="/project_antwerp/MD_DL_DPP8-9/output/models/SCNN/20261020-134127/SCNN.pth"
