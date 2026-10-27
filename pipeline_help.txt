@@ -10,8 +10,10 @@ bash /project_antwerp/MD_DL_DPP8-9/run_command.sh "python3 -m src.data.data_prep
 safetensors -> model training
 model training
 bash /project_antwerp/MD_DL_DPP8-9/run_experiment.sh "src.experiments.scnn"
+
 externe dataset testing
 bash /project_antwerp/MD_DL_DPP8-9/run_command.sh "/project_antwerp/MD_DL_DPP8-9/src/experiments/test_scnn.sh" --> pas het pad aan in test_scnn.sh naar te testen model
+
 
 X GPU, 4 cpu, 16gb ram 
 interpretability 
