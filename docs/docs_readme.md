@@ -5,9 +5,19 @@ This README will guide you through setting up and using Sphinx to document your 
 
 #### Prerequisites
 1. **Python**: Ensure Python is installed on your system.
-2. **Sphinx**: Install Sphinx via pip:
-   ```sh
-   pip install sphinx
+2. **Environment**: It is recommended to use a virtual environment to manage dependencies.
+   Create and activate a virtual environment:
+      ```bash
+      python -m venv .venv
+      source .venv/bin/activate
+      ```
+   Install the dependencies listed in `requirements.txt`:
+      ```bash
+      pip install -r requirements.txt
+      ```
+3. **Sphinx**: Install Sphinx and any necessary extensions:
+   ```bash
+   pip install -U sphinx
    ```
 
 #### Step 1: Directory Structure
@@ -23,7 +33,6 @@ MD_DL_DPP8-9/
 │   └── make.bat
 ├── src/
 │   └── your_project_code_here
-├── setup.py
 └── README.md
 ```
 
@@ -34,10 +43,24 @@ The `conf.py` file is the configuration file for Sphinx. Ensure it is located in
 1. **Project Information**: Modify the `project`, `copyright`, `author`, and `release` variables to fit your project.
 2. **Extensions**: The `extensions` variable lists Sphinx extensions to use. The provided file includes `sphinx.ext.autodoc` and `sphinx.ext.napoleon` for documentation generation.
 3. **Paths**: Ensure `PROJECT_ROOT` points to the root of your project directory and that `sys.path.insert(0, PROJECT_ROOT)` is correctly set.
-
+#### Step 4: css files
+To customize the appearance of your documentation, you can add custom CSS files. Place your CSS files in the `docs/source/_static` directory and reference them in the `conf.py` file. `custom.css` is already present here, and you can modify it to change the visual style of your documentation (e.g., colors, fonts, layout, line_wrapping).
 #### Step 4: Source Files
 Sphinx uses reStructuredText files to generate documentation. Common file is `index.rst` in the `docs/` directory. This file typically includes the table of contents for your documentation.
+Change the `index.rst` file to include your project's modules and packages. For example:
+```rst
+.. toctree::
+   :maxdepth: 6
+   :caption: Contents:
 
+   src.data.data_loading
+   src.data.data_preprocessing
+   src.config
+   src.models
+   src.experiments
+   src.interpretability
+   src.utils
+```
 #### Step 5: Generating Documentation
 To build the documentation:
 
@@ -70,5 +93,5 @@ After running the build command, you can view the generated documentation by ope
 
 ### Notes
 - Ensure all necessary source code files are in the `src/` directory and importable from `conf.py`.
-- The `make.bat` file is useful if you're using Windows for batch processing.
+
 
