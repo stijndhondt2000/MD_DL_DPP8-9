@@ -45,7 +45,7 @@ The `conf.py` file is the configuration file for Sphinx. Ensure it is located in
 3. **Paths**: Ensure `PROJECT_ROOT` points to the root of your project directory and that `sys.path.insert(0, PROJECT_ROOT)` is correctly set.
 #### Step 4: css files
 To customize the appearance of your documentation, you can add custom CSS files. Place your CSS files in the `docs/source/_static` directory and reference them in the `conf.py` file. `custom.css` is already present here, and you can modify it to change the visual style of your documentation (e.g., colors, fonts, layout, line_wrapping).
-#### Step 4: Source Files
+#### Step 5: Source Files
 Sphinx uses reStructuredText files to generate documentation. Common file is `index.rst` in the `docs/` directory. This file typically includes the table of contents for your documentation.
 Change the `index.rst` file to include your project's modules and packages. For example:
 ```rst
@@ -61,21 +61,22 @@ Change the `index.rst` file to include your project's modules and packages. For 
    src.interpretability
    src.utils
 ```
-#### Step 5: Generating Documentation
-To build the documentation:
+#### Step 6: Generating Source files
+To generate the reStructuredText files for your source code, you can use the `sphinx-apidoc` command. This command will automatically create `.rst` files for your modules and packages. Run the following command from the `docs/` directory:
+```sh
+sphinx-apidoc -o ./source/ ../src
+```
+Here, `-o ./source/` specifies the output directory for the generated `.rst` files, and `../src` points to the source code directory. After running this command, you should see new/updated `.rst` files in the `docs/source/` directory corresponding to your project's modules and packages.
 
-1. Navigate to the `docs/` directory:
-   ```sh
-   cd MD_DL_DPP8-9/docs
-   ```
-
-2. Run the Sphinx build command:
+#### Step 7: Generating Documentation
+To build the documentation, after ensuring that all configurations and source files are set up correctly. Make sure you are in the `docs/` directory and run the following command:
+1. Run the Sphinx build command:
    ```sh
    make html
    ```
    This command will generate the HTML documentation in the `_build/html/` directory.
 
-#### Step 6: Viewing Documentation
+#### Step 8: Viewing Documentation
 After running the build command, you can view the generated documentation by opening the `index.html` file in the `_build/html/` directory.
 
 ### Additional Commands
