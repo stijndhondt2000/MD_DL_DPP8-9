@@ -11,6 +11,8 @@ This README will guide you through setting up and using Sphinx to document your 
       python -m venv .venv
       source .venv/bin/activate
       ```
+   It should say `(.venv)` in your terminal prompt, indicating that the virtual environment is active.
+   
    Install the dependencies listed in `requirements.txt`:
       ```bash
       pip install -r requirements.txt
