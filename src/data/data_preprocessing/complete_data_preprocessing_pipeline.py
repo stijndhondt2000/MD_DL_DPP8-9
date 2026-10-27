@@ -25,10 +25,10 @@ if __name__ == "__main__":
     # Step 1: Generate the full dataset from TAR files
     # 2 cpus do 1 targz file in ~30 minutes. ~130 targz files in total = ~65 hours. 
     # To speed up the process, we can use 32 cpus to process multiple targz files in parallel. = ~4 hours.
-    generate_development_dataset_from_tars(regenerate=False, num_proc=num_proc, skip_existing=True, remove_temp_dataset=False)
+    generate_development_dataset_from_tars(regenerate=False, num_proc=num_proc, skip_existing=True, remove_temp_dataset=True)
 
     # Step 2: Generate the external dataset 
-    generate_external_dataset_from_tars(regenerate=False, num_proc=num_proc, skip_existing=True, remove_temp_dataset=False)
+    generate_external_dataset_from_tars(regenerate=False, num_proc=num_proc, skip_existing=True, remove_temp_dataset=True)
 
  
     # Step 3: Prepare the dataset for model training by converting it into safetensors format

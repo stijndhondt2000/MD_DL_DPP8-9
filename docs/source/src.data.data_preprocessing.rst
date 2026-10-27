@@ -10,7 +10,6 @@ Submodules
    src.data.data_preprocessing.complete_data_preprocessing_pipeline
    src.data.data_preprocessing.pre_processing
    src.data.data_preprocessing.prepare_safetensors
-   src.data.data_preprocessing.preprocess_external_dataset
    src.data.data_preprocessing.utils
 
 Module contents
