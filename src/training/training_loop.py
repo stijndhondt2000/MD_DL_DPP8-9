@@ -69,7 +69,6 @@ def training_loop(
     start_time = time.time()
     current_epoch = 0
     current_batch_index = 0
-    train_iter = iter(trainloader)
     interval_correct = 0
     interval_total = 0
     interval_loss = 0.0
@@ -82,71 +81,83 @@ def training_loop(
     current_best_model_path = None
     while current_epoch < max_epochs:
         model.train()
-        data_wait_start = time.time()
-        try:
-            # Get next batch, or restart iterator if we've reached end of dataloader.
-            batch = next(train_iter)
-        except RuntimeError as exc:
-            if "DataLoader worker" in str(exc):
-                raise RuntimeError(
-                    "Training dataloader worker crashed. This is often caused by too many workers "
-                    "or worker-side exceptions in transforms. Try lowering TrainingConfig.num_cpus "
-                    "(for streamed datasets start with 0-2 workers)."
-                ) from exc
-            raise
+        train_iter = iter(trainloader)
+        time_limit_reached = False
+        while True:
+            if time_limit and (time.time() - start_time) > time_limit:
+                time_limit_reached = True
+                break
+            data_wait_start = time.time()
+            try:
+                # Fetch the next batch in this epoch.
+                batch = next(train_iter)
+            except StopIteration:
+                break
+            except RuntimeError as exc:
+                if "DataLoader worker" in str(exc):
+                    raise RuntimeError(
+                        "Training dataloader worker crashed. This is often caused by too many workers "
+                        "or worker-side exceptions in transforms. Try lowering TrainingConfig.num_cpus "
+                        "(for streamed datasets start with 0-2 workers)."
+                    ) from exc
+                raise
 
-        interval_data_wait += time.time() - data_wait_start
+            interval_data_wait += time.time() - data_wait_start
 
-        prep_start = time.time()
-        prepared_inputs, prepared_labels = batch_preparation_fn(batch, device, scramble=True)
-        interval_prep_time += time.time() - prep_start
+            prep_start = time.time()
+            prepared_inputs, prepared_labels = batch_preparation_fn(batch, device, scramble=True)
+            interval_prep_time += time.time() - prep_start
 
-        compute_start = time.time()
-        batch_correct, batch_total, batch_loss = _train_single_batch_prepared_amp(
-            model,
-            prepared_inputs,
-            prepared_labels,
-            optimizer,
-            criterion,
-        )
-        prepared_inputs = None
-        prepared_labels = None
-
-        interval_compute_time += time.time() - compute_start
-        current_batch_index += 1
-
-        interval_correct += batch_correct
-        interval_total += batch_total
-        interval_loss += batch_loss
-        interval_batches += 1
-
-        if current_batch_index % log_every_n_batches == 0:
-            running_acc = interval_correct / max(interval_total, 1)
-            running_loss = interval_loss / max(interval_batches, 1)
-            avg_data_wait_ms = (interval_data_wait / max(interval_batches, 1)) * 1000
-            avg_prep_ms = (interval_prep_time / max(interval_batches, 1)) * 1000
-            avg_compute_ms = (interval_compute_time / max(interval_batches, 1)) * 1000
-            total_interval_time = max(interval_data_wait + interval_prep_time + interval_compute_time, 1e-9)
-            samples_per_sec = interval_total / total_interval_time
-            data_wait_fraction = interval_data_wait / total_interval_time
-            prep_fraction = interval_prep_time / total_interval_time
-            compute_fraction = interval_compute_time / total_interval_time
-            logging.info(
-                f"Batch {current_batch_index} | "
-                f"Train Acc: {running_acc * 100:.4f}% | "
-                f"Train Loss: {running_loss:.4f} | "
-                f"Avg Data Wait: {avg_data_wait_ms:.1f}ms | "
-                f"Avg Prep: {avg_prep_ms:.1f}ms | "
-                f"Avg Compute: {avg_compute_ms:.1f}ms | "
-                f"Samples/s: {samples_per_sec:.1f} | "
-                f"Shares(wait/prep/compute): "
-                f"{data_wait_fraction * 100:.1f}%/"
-                f"{prep_fraction * 100:.1f}%/"
-                f"{compute_fraction * 100:.1f}%"
+            compute_start = time.time()
+            batch_correct, batch_total, batch_loss = _train_single_batch_prepared_amp(
+                model,
+                prepared_inputs,
+                prepared_labels,
+                optimizer,
+                criterion,
             )
-        else:
+            prepared_inputs = None
+            prepared_labels = None
+
+            interval_compute_time += time.time() - compute_start
+            current_batch_index += 1
+
+            interval_correct += batch_correct
+            interval_total += batch_total
+            interval_loss += batch_loss
+            interval_batches += 1
+
+            if current_batch_index % log_every_n_batches == 0:
+                running_acc = interval_correct / max(interval_total, 1)
+                running_loss = interval_loss / max(interval_batches, 1)
+                avg_data_wait_ms = (interval_data_wait / max(interval_batches, 1)) * 1000
+                avg_prep_ms = (interval_prep_time / max(interval_batches, 1)) * 1000
+                avg_compute_ms = (interval_compute_time / max(interval_batches, 1)) * 1000
+                total_interval_time = max(interval_data_wait + interval_prep_time + interval_compute_time, 1e-9)
+                samples_per_sec = interval_total / total_interval_time
+                data_wait_fraction = interval_data_wait / total_interval_time
+                prep_fraction = interval_prep_time / total_interval_time
+                compute_fraction = interval_compute_time / total_interval_time
+                logging.info(
+                    f"Batch {current_batch_index} | "
+                    f"Train Acc: {running_acc * 100:.4f}% | "
+                    f"Train Loss: {running_loss:.4f} | "
+                    f"Avg Data Wait: {avg_data_wait_ms:.1f}ms | "
+                    f"Avg Prep: {avg_prep_ms:.1f}ms | "
+                    f"Avg Compute: {avg_compute_ms:.1f}ms | "
+                    f"Samples/s: {samples_per_sec:.1f} | "
+                    f"Shares(wait/prep/compute): "
+                    f"{data_wait_fraction * 100:.1f}%/"
+                    f"{prep_fraction * 100:.1f}%/"
+                    f"{compute_fraction * 100:.1f}%"
+                )
             batch = None  # Free batch memory
-        should_eval = (current_epoch % eval_every_n_epochs == 0) or (current_epoch == max_epochs - 1)
+        # Evaluate after a complete pass, or save progress when time runs out.
+        should_eval = interval_batches > 0 and (
+            (current_epoch + 1) % eval_every_n_epochs == 0
+            or current_epoch == max_epochs - 1
+            or time_limit_reached
+        )
         if should_eval:
             model.eval()
             
