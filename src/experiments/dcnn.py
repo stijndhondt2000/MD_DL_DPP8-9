@@ -29,6 +29,6 @@ if __name__ == "__main__":
         dataset_size=1.0,  # Use the full dataset
         time_limit=86400,  # 24 hours
         max_nr_epochs=40,
-        learning_rate=1e-2,
+        patience=40
      )
     train_model(config_dcnn, "DCNN")
