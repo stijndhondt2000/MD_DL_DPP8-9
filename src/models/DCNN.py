@@ -22,8 +22,8 @@ class _DenseLayer(nn.Module):
 
     def forward(self, x):
         # Bottleneck layer
-        out = self.relu1(self.conv1(self.norm1(x)))
-        out = self.relu2(self.conv2(self.norm2(out)))
+        out = self.conv1(self.relu1(self.norm1(x)))
+        out = self.conv2(self.relu2(self.norm2(out)))
         out = self.dropout(out)
         out = torch.cat([x, out], 1)
         return out
