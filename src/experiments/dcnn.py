@@ -28,7 +28,7 @@ if __name__ == "__main__":
         batch_size=256,
         dataset_size=1.0,  # Use the full dataset
         time_limit=86400,  # 24 hours
-        max_nr_epochs=40,
-        patience=40
+        max_nr_epochs=7,
+        patience=5
      )
     train_model(config_dcnn, "DCNN")
