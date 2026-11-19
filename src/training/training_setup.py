@@ -184,6 +184,7 @@ def train_model(config: TrainingConfig, model_name: str):
                     batch_preparation_fn=batch_preparation_fn,
                     output_dir=run_dir,
                     max_batches=config.test_max_batches,
+                    log_every_n_batches=config.log_every_n_batches,
                 )
                 # Save the model and metrics after training and testing
                 save_results(model_state_dict, run_dir, model_name, metrics)

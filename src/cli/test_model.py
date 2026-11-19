@@ -159,6 +159,7 @@ def test_model() -> None:
 			max_batches=args.max_batches,
 			split_name=split,
 			batch_preparation_fn=batch_preparation_fn,
+			log_every_n_batches=config.log_every_n_batches,
 		)
 
 	logging.info(f"Testing complete. output saved to {args.output_dir}")

@@ -2,6 +2,7 @@ import os
 import torch
 
 from src.training.metric_functions import all_statistics, calculate_statistics
+from src.infrastructure.logger import get_logger
 import matplotlib.pyplot as plt
 from src.training.LabelEncoder import LabelEncoder
 from sklearn.metrics import ConfusionMatrixDisplay
@@ -16,6 +17,7 @@ def model_testing(
     max_batches=None,
     split_name="test",
     batch_preparation_fn=None,
+    log_every_n_batches=100,
 ):
     """Test a model on a given test loader and compute various statistics.
     Args:
@@ -27,6 +29,7 @@ def model_testing(
         max_batches: Maximum number of batches to process. If None, process all batches.
         split_name: Name of the data split (e.g., 'test', 'validation').
         batch_preparation_fn: Optional function to prepare batches before feeding them to the model.
+        log_every_n_batches: Number of batches between evaluation progress logs.
     """
     statistics = calculate_statistics(
         model=model,
@@ -35,10 +38,20 @@ def model_testing(
         criterion=criterion,
         max_batches=max_batches,
         batch_preparation_fn=batch_preparation_fn,
+        split_name=split_name,
+        log_every_n_batches=log_every_n_batches,
     )
     labelencoder = LabelEncoder()
     label_classes = labelencoder.get_classes()
-    print(statistics)
+    get_logger().info(
+        "%s results | Accuracy: %.4f%% | Loss: %.4f | Weighted precision: %.4f | Weighted recall: %.4f | Weighted F1: %.4f",
+        split_name,
+        statistics["accuracy"] * 100,
+        statistics["loss"],
+        statistics["precision"],
+        statistics["recall"],
+        statistics["f1_score"],
+    )
 
     # save statistics to file
     with open(os.path.join(output_dir, "statistics.txt"), "w") as f:

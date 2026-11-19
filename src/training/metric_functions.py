@@ -1,11 +1,14 @@
+from time import perf_counter
+
 import torch
 from contextlib import nullcontext
 from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score, confusion_matrix
-import logging
+from src.infrastructure.logger import get_logger
 from src.training.batch_preprocessing import prepare_model_batch
 import numpy as np
 
 
+logging = get_logger()
 
 def _compute_label_prediction_statistics(labels, predictions, statistics_to_compute):
     stats = {}
@@ -69,6 +72,8 @@ def calculate_statistics(
     max_batches: int | None = None,
     statistics_to_compute: list[str] | None = None,
     batch_preparation_fn=prepare_model_batch,
+    split_name: str = "evaluation",
+    log_every_n_batches: int = 100,
 ) -> dict[str, float]:
     """Calculate specified statistics for a model on a given dataloader. Loop over the dataloader and compute the specified statistics for each batch, then average them over the entire dataloader.
     Args:
@@ -78,6 +83,8 @@ def calculate_statistics(
         device (_type_): device to use for evaluation
         max_batches (int | None, optional): maximum number of batches to evaluate. Defaults to None.
         statistics_to_compute (list[str] | None, optional): list of statistics to compute. Defaults to None.
+        split_name: Label used in evaluation progress logs.
+        log_every_n_batches: Number of batches between progress logs.
 
     Returns:
         dict[str, float]: dictionary containing the computed statistics
@@ -90,6 +97,9 @@ def calculate_statistics(
     all_predictions = []
     total_loss = 0.0
     num_batches = 0
+    log_every_n_batches = max(1, log_every_n_batches)
+    interval_batches = interval_frames = interval_correct = 0
+    interval_loss = interval_wait = interval_prep = interval_compute = 0.0
     dpp_class_examples = {
         "dpp8": {"labels": [], "predictions": []},
         "dpp9": {"labels": [], "predictions": []},
@@ -100,14 +110,22 @@ def calculate_statistics(
     model.eval()
 
     with torch.no_grad():
-        for batch_idx, data in enumerate(dataloader):
-            logging.debug(f"Processing batch {batch_idx + 1}...")
-            if max_batches is not None and batch_idx >= max_batches:
+        batches = iter(dataloader)
+        while max_batches is None or num_batches < max_batches:
+            wait_start = perf_counter()
+            try:
+                data = next(batches)
+            except StopIteration:
                 break
+            prep_start = perf_counter()
+            interval_wait += prep_start - wait_start
             images, labels = batch_preparation_fn(data, device, scramble=False)
+            compute_start = perf_counter()
+            interval_prep += compute_start - prep_start
+
             outputs = model(images)
-            loss = criterion(outputs, labels)
-            total_loss += loss.item()
+            loss = criterion(outputs, labels).item()
+            total_loss += loss
             num_batches += 1
 
             _, predicted = torch.max(outputs.data, 1)
@@ -117,7 +135,31 @@ def calculate_statistics(
             all_labels.extend(labels_cpu)
             all_predictions.extend(predicted_cpu)
 
+            interval_correct += np.count_nonzero(labels_cpu == predicted_cpu)
+            interval_frames += len(labels_cpu)
+            interval_loss += loss
+            interval_batches += 1
+            interval_compute += perf_counter() - compute_start
 
+            if num_batches == 1 or num_batches % log_every_n_batches == 0:
+                interval_time = max(interval_wait + interval_prep + interval_compute, 1e-9)
+                logging.info(
+                    "%s | Batch %d | Frames: %d | Eval Acc: %.4f%% | Eval Loss: %.4f | "
+                    "Avg Data Wait: %.1fms | Avg Prep: %.1fms | Avg Compute: %.1fms | "
+                    "Samples/s: %.1f | Shares(wait/prep/compute): %.1f%%/%.1f%%/%.1f%%",
+                    split_name, num_batches, len(all_labels),
+                    100 * interval_correct / max(interval_frames, 1),
+                    interval_loss / interval_batches,
+                    1000 * interval_wait / interval_batches,
+                    1000 * interval_prep / interval_batches,
+                    1000 * interval_compute / interval_batches,
+                    interval_frames / interval_time,
+                    100 * interval_wait / interval_time,
+                    100 * interval_prep / interval_time,
+                    100 * interval_compute / interval_time,
+                )
+                interval_batches = interval_frames = interval_correct = 0
+                interval_loss = interval_wait = interval_prep = interval_compute = 0.0
 
     # statistics -> dpp_class -> accuracy, loss, precision, recall, f1_score, confusion_matrix    
     statistics = {}
@@ -139,6 +181,10 @@ def calculate_statistics(
     if "fpr" in statistics_to_compute:
         statistics["fpr"] = calculate_fpr_multiclass(statistics["confusion_matrix"])
 
+    logging.info(
+        "%s evaluation complete | Batches: %d | Frames: %d",
+        split_name, num_batches, len(all_labels),
+    )
     return statistics
 
 def calculate_accuracy_and_loss(
