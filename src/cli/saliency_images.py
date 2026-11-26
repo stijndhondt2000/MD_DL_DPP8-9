@@ -12,8 +12,27 @@ from PIL import Image
 from matplotlib import colormaps
 from safetensors import safe_open
 
-from src.interpretability.sanity_checks import load_model
 from src.interpretability.interpretability_utils import CaptumInterpreter
+
+from src.utils.resolvers import (
+    _load_config_from_artifacts, _extract_class_name, _resolve_model_class, _load_weights,
+)
+
+def load_model(checkpoint, device):
+    """Load a TRUSTED project checkpoint (full module or state dictionary)."""
+    # The current trainer saves full modules. Loading these uses Python pickle;
+    # only use checkpoints you created or otherwise trust.
+    raw = torch.load(checkpoint, map_location='cpu', weights_only=False)
+    if isinstance(raw, torch.nn.Module):
+        model = getattr(raw, '_orig_mod', raw)
+    else:
+        config = _load_config_from_artifacts(None, str(checkpoint))
+        if config is None:
+            raise ValueError('State dictionaries require adjacent training_config.json')
+        model = _resolve_model_class(_extract_class_name(config.model_class))(**config.model_args)
+        state = raw.get('state_dict', raw) if isinstance(raw, dict) else raw
+        _load_weights(model, state)
+    return model.to(device).eval()
 
 
 def load_images(directory, limit):
