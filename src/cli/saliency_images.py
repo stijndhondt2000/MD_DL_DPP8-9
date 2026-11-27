@@ -1,4 +1,4 @@
-"""Run three attribution methods on two saved training images by default.
+"""Run three attribution methods on two saved images by default.
 
 Run from the repository root with python -m src.cli.saliency_images --help.
 Inputs are image safetensors produced by preprocess_images, not coordinates.
@@ -35,14 +35,17 @@ def load_model(checkpoint, device):
     return model.to(device).eval()
 
 
-def load_images(directory, limit):
-    """Read only the requested number of training samples, in sorted file order."""
+def load_images(directory, limit=2, split='train'):
+    """Walk shard/batch files in order, stopping after limit individual images."""
+    directory = Path(directory)
+    if not directory.is_dir():
+        raise FileNotFoundError(f'Image directory does not exist: {directory}')
     samples = []
     for path in sorted(directory.rglob('*.safetensors')):
         with safe_open(str(path), framework='pt', device='cpu') as f:
             metadata = f.metadata() or {}
             source = metadata.get('source_shard', str(path))
-            if not any(p == 'train' or p.startswith('train_shard_') for p in Path(source).parts):
+            if not any(p == split or p.startswith(f'{split}_shard_') for p in Path(source).parts):
                 continue
             if not {'images', 'labels', 'num_atoms'}.issubset(f.keys()):
                 raise ValueError(f'{path}: expected images, labels, num_atoms; use saved image files')
@@ -53,6 +56,7 @@ def load_images(directory, limit):
                 if f.get_slice(key).get_shape() != [shape[0]]:
                     raise ValueError(f'{path}: invalid {key} shape')
             take = min(limit - len(samples), shape[0])
+            print(f'Loading {take} image(s) from {path}', flush=True)
             images = f.get_slice('images')[:take].clone()
             labels = f.get_slice('labels')[:take]
             counts = f.get_slice('num_atoms')[:take]
@@ -65,11 +69,13 @@ def load_images(directory, limit):
                     raise ValueError(f'{path}: invalid atom count or padding')
                 samples.append(dict(images=x, label=int(labels[i]), num_atoms=n,
                                     tensor_file=str(path.resolve()), index_in_file=i,
+                                    split=split,
                                     source_shard=source,
                                     source_index=int(metadata.get('start', '0')) + i))
         if len(samples) == limit:
+            print(f'Loaded {len(samples)} images total; stopping at the limit.', flush=True)
             return samples
-    raise ValueError(f'Found {len(samples)} training images in {directory}; need {limit}')
+    raise ValueError(f'Found {len(samples)} {split} images in {directory}; need {limit}')
 
 
 def run_methods(model, x, target, steps, perturbations):
@@ -132,6 +138,7 @@ def main():
     parser.add_argument('--checkpoint', type=Path, required=True, help='Trusted model checkpoint')
     parser.add_argument('--output-dir', type=Path, required=True)
     parser.add_argument('--max-samples', type=int, default=2)
+    parser.add_argument('--split', choices=['train', 'val', 'test', 'external'], default='train')
     parser.add_argument('--steps', type=int, default=50)
     parser.add_argument('--perturbations', type=int, default=8)
     parser.add_argument('--device', default='cuda' if torch.cuda.is_available() else 'cpu')
@@ -142,12 +149,12 @@ def main():
         parser.error('Use a new output directory')
 
     torch.manual_seed(42)
-    samples = load_images(args.image_dir, args.max_samples)
+    samples = load_images(args.image_dir, args.max_samples, args.split)
     model = load_model(args.checkpoint, args.device)  # Sets eval mode.
     args.output_dir.mkdir(parents=True)
     settings = {key: str(value) if isinstance(value, Path) else value for key, value in vars(args).items()}
     settings.update(seed=42, target='original predicted class', baseline='zero',
-                    occlusion_window=[1, 1, 1], split='train')
+                    occlusion_window=[1, 1, 1])
     (args.output_dir / 'settings.json').write_text(json.dumps(settings, indent=2))
 
     for i, sample in enumerate(samples):
